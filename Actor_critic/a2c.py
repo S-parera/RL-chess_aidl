@@ -22,7 +22,7 @@ class Policy(nn.Module):
 
     def forward(self,x):
         x = self.relu(self.fc1(x))
-        action = F.softmax(self.action(x), dim=-1)
+        action = self.action(x)
         value_head = self.value_head(x)
 
         return action, value_head
@@ -38,6 +38,7 @@ class Bookkeeping():
         
         self.actor_loss = []
         self.critic_loss = []
+        self.loss = []
     
     def reset_bookkeeping(self):
         self.log_probs = []
@@ -76,15 +77,16 @@ class A2C:
     def init_hyperparameters(self,lr,gamma):
         self.max_episodes = 1000
         self.max_time_steps = 600
+        self.max_trajectories = 5
         self.gamma = gamma
         self.lr = lr
 
     def get_action(self, state):
         state = torch.from_numpy(state).float()
         
-        probs, value = self.policy(state)
+        logits, value = self.policy(state)
 
-        m = Categorical(probs)
+        m = Categorical(logits=logits)
 
         action = m.sample()
 
@@ -117,74 +119,87 @@ class A2C:
 
         self.plot_path = os.path.join('./Plots\\' + self.name + '.png')
 
+
     def train(self):
         
-        # Loop through episodes
-        for i in range(self.max_episodes):
+        
+        for episode in range(self.max_episodes):
 
-            # Reset enviroment
-            state = self.env.reset()
+            self.bookkeeping.loss = []
 
-            # Reset bookkeeping
-            self.bookkeeping.reset_bookkeeping()
+            undiscounted_rewards = []
 
-            # Loop through timesteps
-            for e in range(self.max_time_steps):
+            # Collect trajectories
+            # Paralelize this
+            for i in range(self.max_trajectories):
+                # Reset enviroment
+                state = self.env.reset()
 
-                # Run action through policy
-                action, value, log_probs = self.get_action(state)
+                # Reset bookkeeping
+                self.bookkeeping.reset_bookkeeping()
+                
+                # Loop through timesteps
+                for e in range(self.max_time_steps):
 
-                # Logprobs bookkeeping
-                self.bookkeeping.log_probs.append(log_probs)
+                    # Run action through policy
+                    action, value, log_probs = self.get_action(state)
+
+                    # Logprobs bookkeeping
+                    self.bookkeeping.log_probs.append(log_probs)
 
 
-                # Calculate next step
-                state, reward, done, _ = self.env.step(action)
+                    # Calculate next step
+                    state, reward, done, _ = self.env.step(action)
 
-                # Save reward
-                self.bookkeeping.rewards.append(reward)
+                    # Save reward
+                    self.bookkeeping.rewards.append(reward)
 
-                #save value
-                self.bookkeeping.values.append(value)
+                    #save value
+                    self.bookkeeping.values.append(value)
 
-                if(done):
-                    break
+                    if(done):
+                        break
 
-            # Calculate reward as advantage
-            if(not done):
-                _, G, _ = self.get_action(state)
-            else:
-                G = 0
+                # Calculate reward as advantage
+                if(not done):
+                    _, G, _ = self.get_action(state)
+                else:
+                    G = 0
 
-            # Calculate undiscounted rewards
-            self.bookkeeping.undiscounted_rewards.append(sum(self.bookkeeping.rewards))
-            
-            # Calculate discounted rewards and advantages
-            for reward in reversed(self.bookkeeping.rewards):
-                G = reward + self.gamma * G
+                # Calculate undiscounted rewards
+                undiscounted_rewards.append(sum(self.bookkeeping.rewards))
+                
+                # Calculate discounted rewards and advantages
+                for reward in reversed(self.bookkeeping.rewards):
+                    G = reward + self.gamma * G
 
-                # Save values in good order
-                self.bookkeeping.accumulated_rewards.insert(0,G)
+                    # Save values in good order
+                    self.bookkeeping.accumulated_rewards.insert(0,G)
 
-            # Normalize G
-            self.bookkeeping.accumulated_rewards = torch.tensor(self.bookkeeping.accumulated_rewards)
-            self.bookkeeping.accumulated_rewards = (self.bookkeeping.accumulated_rewards - self.bookkeeping.accumulated_rewards.mean()) / (self.bookkeeping.accumulated_rewards.std() + 1e-8)
+                # Normalize G
+                self.bookkeeping.accumulated_rewards = torch.tensor(self.bookkeeping.accumulated_rewards)
+                self.bookkeeping.accumulated_rewards = (self.bookkeeping.accumulated_rewards - self.bookkeeping.accumulated_rewards.mean()) / (self.bookkeeping.accumulated_rewards.std() + 1e-8)
 
-            for log_probs, value, G in zip(self.bookkeeping.log_probs, self.bookkeeping.values,self.bookkeeping.accumulated_rewards):
+                for log_probs, value, G in zip(self.bookkeeping.log_probs, self.bookkeeping.values,self.bookkeeping.accumulated_rewards):
 
-                # Calculate advantage
-                advantage = G - value
+                    # Calculate advantage
+                    advantage = G - value
 
-                # Accumulate actor_loss
-                self.bookkeeping.actor_loss.append(-log_probs * advantage)
+                    # Accumulate actor_loss
+                    self.bookkeeping.actor_loss.append(-log_probs * advantage)
 
-                # Accumulate critic_loss
-                self.bookkeeping.critic_loss.append(F.mse_loss(value,torch.tensor([G])))
+                    # Accumulate critic_loss
+                    self.bookkeeping.critic_loss.append(F.mse_loss(value,torch.tensor([G])))
+
+                # Sum losses
+                CriticLoss = torch.stack(self.bookkeeping.critic_loss).sum()
+                ActorLoss = torch.stack(self.bookkeeping.actor_loss).sum()
+                self.bookkeeping.loss.append(CriticLoss + ActorLoss)
+
+            self.bookkeeping.undiscounted_rewards.append(sum(undiscounted_rewards)/self.max_trajectories)
 
             # Sum losses
-            CriticLoss = torch.stack(self.bookkeeping.critic_loss).sum()
-            ActorLoss = torch.stack(self.bookkeeping.actor_loss).sum()
-            loss = CriticLoss + ActorLoss
+            loss = torch.stack(self.bookkeeping.loss).sum()
 
             # Reset gradients
             self.optimizer.zero_grad()
@@ -196,7 +211,7 @@ class A2C:
             # Calculate running reward complementary filter
             self.running_reward = 0.05 * self.bookkeeping.undiscounted_rewards[-1] + (1 - 0.05) * self.running_reward
 
-            print(f"Episode {i+1}. Steps: {e+1}, Running reward: {self.running_reward:.2f}.  Actor Loss: {ActorLoss:.2f}, Critic Loss: {CriticLoss:.2f}")
+            print(f"Episode {episode+1}. Steps: {e+1}, Running reward: {self.running_reward:.2f}.  Actor Loss: {ActorLoss:.2f}, Critic Loss: {CriticLoss:.2f}")
 
             # check if we have "solved" the cart pole problem
             if self.running_reward > self.env.spec.reward_threshold:
