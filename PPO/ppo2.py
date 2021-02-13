@@ -12,18 +12,23 @@ from itertools import count
 
 import os, sys
 
+
 class Policy(nn.Module):
     def __init__(self):
         super().__init__()
-        self.fc1 = nn.Linear(4,128)
+        self.fc1 = nn.Linear(4,64)
         self.relu = nn.ReLU(inplace=True)
-        self.action = nn.Linear(128,2)
-        self.value_head = nn.Linear(128,1)
+
+        self.hidden_actor = nn.Linear(64,64)
+        self.hidden_critic = nn.Linear(64,64)
+
+        self.action = nn.Linear(64,2)
+        self.value_head = nn.Linear(64,1)
 
     def forward(self,x):
         x = self.relu(self.fc1(x))
-        action = self.action(x)
-        value_head = self.value_head(x)
+        action = self.action(self.relu(self.hidden_actor(x)))
+        value_head = self.value_head(self.relu(self.hidden_critic(x)))
 
         return action, value_head
 
@@ -70,30 +75,28 @@ def collect_trajectories(env):
     trajectory_log_probs = []
     trajectory_rewards = []
 
-    for t in range(500):
+    for t in range(1000):
         # get action
         action, value, log_prob = get_action(state)
+
+        # Step
+        next_state, reward, done, _ = env.step(action)
 
         trajectory_actions.append(action)
         trajectory_values.append(value)
         trajectory_log_probs.append(log_prob)
         trajectory_states.append(state)
-
-        # Step
-        state, reward, done, _ = env.step(action)
-
-
-
         trajectory_rewards.append(reward)
+
+        state = next_state
 
         if (done):
             break
     # Calculate reward as advantage
-    # if(not done):
-    #     _, G, _ = get_action(state)
-    #     trajectory_rewards.append(G)
-    # else:
-    #     G = 0
+    if(not done):
+        _, G, _ = get_action(state)
+    else:
+        G = 0
 
     buffer.log_probs.append(torch.tensor(trajectory_log_probs))
     buffer.actions.append(torch.tensor(trajectory_actions))
@@ -101,15 +104,19 @@ def collect_trajectories(env):
     buffer.values.append(trajectory_values)
     buffer.states.append(torch.tensor(trajectory_states))
 
-def rewards_to_go(rewards_buffer):
-    for trajectory in rewards_buffer:
-        trajectory_rtg = []
-        G = 0
-        for reward in reversed(trajectory):
-            G = G * gamma + reward
-            trajectory_rtg.insert(0, G)
+    # 4 Compute rewards to go
+    rewards_to_go(buffer.rewards, G)
 
-        buffer.rtg.append(torch.tensor(trajectory_rtg))
+
+def rewards_to_go(rewards_buffer, G):
+    
+    trajectory_rtg = []
+    #G = 0
+    for reward in reversed(rewards_buffer[-1]):
+        G = G * gamma + reward
+        trajectory_rtg.insert(0, G)
+
+    buffer.rtg.append(torch.tensor(trajectory_rtg))
 
 def calc_advantages(value_buffer, rtg_buffer):
     for value_traj, G_traj in zip(value_buffer, rtg_buffer):
@@ -155,13 +162,17 @@ def train():
 
 def render_env():
     state, done = env.reset(), False
+    total_rw = 0
     while not done:
-        env.render()
+        #env.render()
         action, value, log_prob = get_action(state)
         # Step
         state, reward, done, _ = env.step(action)
+        total_rw += reward
 
     env.close()
+
+    return total_rw
 
 
 # env = gym.make("LunarLander-v2")
@@ -181,24 +192,29 @@ average_rewards = []
 
 # 2 for k = 0, 1, 2 , ... do
 for k in range(2000):
+
+
     # Reset buffer
     buffer.reset_buffer()
+
     # 3 Collect set of trajectories
-    for i in range(10): # Collect 10 trajectories
+    for i in range(4): # Collect 10 trajectories
         collect_trajectories(env)
 
-    # 4 Compute rewards to go
-    rewards_to_go(buffer.rewards)
 
     # 5 Compute advantages
     calc_advantages(buffer.values, buffer.rtg)
 
+
+
     # 6 PPO loss
     train()
+
+    average_reward = render_env()
     
-    average_reward = 0
-    for e in buffer.rewards:
-        average_reward += sum(e)/10
+    # average_reward = 0
+    # for e in buffer.rewards:
+    #     average_reward += sum(e)/4
 
     
     running_reward = 0.1 * average_reward + (1 - 0.1) * running_reward
@@ -214,6 +230,8 @@ for k in range(2000):
 
     if k%100 == 0:
         render_env()
+
+
 
 
 
