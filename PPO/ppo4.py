@@ -208,9 +208,9 @@ def evaluate(render):
     return total_rw
     
 
-num_episodes = 4000
+num_episodes = 1000
 num_trajectories = 1
-num_time_steps = 50
+num_time_steps = 20
 batch_size = 5
 train_iters = 4
 
@@ -218,10 +218,9 @@ train_iters = 4
 
 total_time_steps = 0
 
-# env = gym.make("CartPole-v1")
+env = gym.make("CartPole-v1")
 # env2 = gym.make("CartPole-v1")
-env = gym.make("LunarLander-v2")
-env2 = gym.make("LunarLander-v2")
+# env = gym.make("LunarLander-v2")
 
 
 

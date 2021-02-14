@@ -117,7 +117,7 @@ class CriticNN(nn.Module):
         return y
 
 def get_action(state):
-        state = torch.from_numpy(state).float()
+        state = torch.from_numpy(state).float().cuda()
         
         logits = actor(state.unsqueeze(dim=0))
 
@@ -127,7 +127,7 @@ def get_action(state):
 
         buffer.masks.append(mask)
 
-        logits[0][mask] = -50
+        logits[0][mask] = -1000
 
         m = Categorical(logits=logits)
 
@@ -214,7 +214,7 @@ def train():
 
         for batch in batches:
             # Compute Policy_loss
-            logits = actor(states[batch])
+            logits = actor(states[batch].cuda())
 
             #Aplicar mateixa màscara
             batch_mask = itemgetter(*batch)(masks)
@@ -225,20 +225,20 @@ def train():
 
             m = Categorical(logits=logits)
 
-            entropy = m.entropy()
+            entropy = m.entropy().cuda()
 
-            log_probs = m.log_prob(actions[batch])
-            ratio = (log_probs - old_log_probs[batch]).exp()
+            log_probs = m.log_prob(actions[batch].cuda())
+            ratio = (log_probs - old_log_probs[batch].cuda()).exp()
 
             actor_optimizer.zero_grad()
-            surr1 = ratio * advantages[batch]
-            surr2 = torch.clamp(ratio, 1-0.2, 1+0.2) * advantages[batch]
+            surr1 = ratio * advantages[batch].cuda()
+            surr2 = torch.clamp(ratio, 1-0.2, 1+0.2) * advantages[batch].cuda()
 
             ActorLoss = -torch.min(surr1, surr2).mean()
 
-            values = critic(states[batch])
+            values = critic(states[batch].cuda())
             
-            CriticLoss = ((values - rtgs[batch])**2).mean()
+            CriticLoss = ((values - rtgs[batch].cuda())**2).mean()
 
             loss = ActorLoss + CriticLoss - 1e-4 * entropy.mean()
 
@@ -272,7 +272,7 @@ def evaluate(render):
 num_episodes = 4000
 num_trajectories = 1
 num_time_steps = 50
-batch_size = 10
+batch_size = 5
 train_iters = 4
 
 
@@ -284,14 +284,11 @@ total_time_steps = 0
 
 env = ChessEnv()
 
-
-
-
 observation_space = (21,8,8)
 action_space = 4272
 
-actor = ActorNN()
-critic = CriticNN()
+actor = ActorNN().cuda()
+critic = CriticNN().cuda()
 
 actor_optimizer = torch.optim.Adam(actor.parameters(), lr=3e-4)
 critic_optimizer = torch.optim.Adam(critic.parameters(), lr=3e-4)

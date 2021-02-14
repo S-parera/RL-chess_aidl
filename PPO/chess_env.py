@@ -473,7 +473,7 @@ class ChessEnv():
     if initial_state:
       self.board = chess.Board()
     else:
-      self.board = chess.Board(self.get_FEN(np.random.randint(0,500000)))
+      self.board = chess.Board(self.get_FEN(np.random.randint(0,1000000)))
     state = self.BoardEncode()
     return state
 
@@ -483,9 +483,22 @@ class ChessEnv():
 
   def step(self, action):
 
+    # comprobar valoracion stockfish
+
     self.board.push(chess.Move.from_uci(self.inv_map[action]))
 
+    # comprobar valoracio stf
+
+    # Restar valoraciones y me da el reward del movimiento
+
     # REWARDS
+    """
+    guardar valoracion anterior
+
+    calcular con stockfish valoracion nueva
+
+    reward = nueva - antigua
+    """
     if(self.board.is_checkmate()):
       reward = 1
     else:
@@ -503,18 +516,6 @@ class ChessEnv():
     print(self.board)
 
 
-"""
-env = ChessEnv()
 
-state = env.reset(initial_state=True)
-env.render()
-
-state, reward, done = env.step(514)
-
-print(state)
-print(reward)
-print(done)
-env.render()
-"""
 
 
