@@ -161,6 +161,7 @@ def train():
         for batch in batches:
             # Compute Policy_loss
             logits = actor(states[batch].cuda())
+
             m = Categorical(logits=logits)
 
             entropy = m.entropy().cuda()
@@ -207,7 +208,7 @@ def evaluate(render):
     return total_rw
     
 
-num_episodes = 1000
+num_episodes = 4000
 num_trajectories = 1
 num_time_steps = 50
 batch_size = 5
