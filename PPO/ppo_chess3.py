@@ -272,8 +272,8 @@ def evaluate(render):
 num_episodes = 4000
 num_trajectories = 1
 num_time_steps = 50
-batch_size = 5
-train_iters = 4
+batch_size = 10
+train_iters = 8
 
 
 
@@ -289,6 +289,9 @@ action_space = 4272
 
 actor = ActorNN().cuda()
 critic = CriticNN().cuda()
+
+# from torchsummary import summary
+# print(summary(actor, (21,8,8)))
 
 actor_optimizer = torch.optim.Adam(actor.parameters(), lr=3e-4)
 critic_optimizer = torch.optim.Adam(critic.parameters(), lr=3e-4)
@@ -308,6 +311,12 @@ ep_reward = 0
 EP_reward = 0
 
 state = env.reset()
+
+
+
+
+# actor.load_state_dict(torch.load(".\models\\actor.pt"))
+# critic.load_state_dict(torch.load(".\models\\critic.pt"))
 
 while num_episodes > episode:
     
@@ -370,6 +379,10 @@ while num_episodes > episode:
     #     print(f"Solved! Running reward is now {running_reward} and the last episode runs to {ep_reward} time steps!")
     #     break
 
+    if(episode % 100 == 0):
+        #save models
+        torch.save(critic.state_dict(), ".\models\\critic.pt")
+        torch.save(actor.state_dict(), ".\models\\actor.pt")
     
 
     
@@ -380,3 +393,4 @@ plt.show()
 #plt.clf()
     
 a = evaluate(render=True)
+

@@ -487,6 +487,8 @@ class ChessEnv():
 
     self.board.push(chess.Move.from_uci(self.inv_map[action]))
 
+    FEN = self.board.fen()
+
     # comprobar valoracio stf
 
     # Restar valoraciones y me da el reward del movimiento
@@ -503,6 +505,7 @@ class ChessEnv():
       reward = 1
     else:
       reward = 0
+      
 
     # DONE  
     if(self.board.is_game_over()):
