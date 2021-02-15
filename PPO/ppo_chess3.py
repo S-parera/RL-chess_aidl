@@ -196,7 +196,7 @@ def create_batches():
     # print("rtg len: ", rtgs.shape[0])
     # print("log len: ", log_probs.shape[0])
 
-    # advantages = normalize(advantages)
+    advantages = normalize(advantages)
 
     n = advantages.shape[0]
     batch_starts = np.arange(0, n, batch_size)
@@ -308,7 +308,7 @@ while num_episodes > episode:
     buffer.reset_buffer()
 
     # state = env.reset()
-    print("Simulating..")
+    # print("Simulating..")
 
     for t in range(num_time_steps): #time_steps
         # get action
@@ -348,7 +348,7 @@ while num_episodes > episode:
     # 4 Finish trajectory
     finish_trajectory(G, traj, t)
 
-    print("Training... ")
+    # print("Training... ")
     train()
 
 
