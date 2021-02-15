@@ -519,6 +519,9 @@ class ChessEnv():
     print(self.board)
     print("Move: ", self.move)
 
+  def close(self):
+    self.stockfish_engine.quit()
+
 
 
 

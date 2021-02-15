@@ -263,7 +263,7 @@ def evaluate(render):
         state, reward, done = env.step(action)
     
 
-num_episodes = 2
+num_episodes = 250
 num_trajectories = 1
 num_time_steps = 20
 batch_size = 5
@@ -372,5 +372,7 @@ plt.plot(average_rewards)
 #plt.savefig(path)
 plt.show()
 #plt.clf()
+
+env.close()
     
-a = evaluate(render=True)
+# evaluate(render=True)
