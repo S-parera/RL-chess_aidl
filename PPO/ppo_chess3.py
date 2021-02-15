@@ -255,25 +255,19 @@ def train():
 
 def evaluate(render):
     state, done = env.reset(), False
-    total_rw = 0
     while not done:
         if render:
             env.render()
         action, value, log_prob = get_action(state)
         # Step
-        state, reward, done, _ = env.step(action)
-        total_rw += reward
-
-    env.close()
-
-    return total_rw
+        state, reward, done = env.step(action)
     
 
-num_episodes = 4000
+num_episodes = 2
 num_trajectories = 1
-num_time_steps = 60
-batch_size = 60
-train_iters = 5
+num_time_steps = 20
+batch_size = 5
+train_iters = 4
 
 
 
