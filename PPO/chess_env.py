@@ -2,7 +2,7 @@ import numpy as np
 import chess
 import torch
 import chess.engine
-from stockfish import StockfishScore
+from stockfish import StockfishScore, init_stockfish_engine
 
 
 class ChessEnv():
@@ -14,6 +14,12 @@ class ChessEnv():
     self.move_mask = self.create_move_mask()
 
     self.inv_map = {v: k for k, v in self.move_mask.items()}
+
+    self.stockfish_val = 0
+
+    self.stockfish_engine = init_stockfish_engine()
+
+    self.move = ''
 
   ##############################################################################
   ### This function creates a dictionary with all possible moves in chess ######
@@ -476,6 +482,9 @@ class ChessEnv():
     else:
       self.board = chess.Board(self.get_FEN(np.random.randint(0,1000000)))
     state = self.BoardEncode()
+
+    self.stockfish_val = StockfishScore(self.board.fen(), self.stockfish_engine)
+
     return state
 
   def legal_actions(self):
@@ -485,30 +494,19 @@ class ChessEnv():
   def step(self, action):
 
     # comprobar valoracion stockfish
-    stockfish_val_current = StockfishScore(self.board.fen())
-    self.board.push(chess.Move.from_uci(self.inv_map[action]))
+    # stockfish_val_current = StockfishScore(self.board.fen())
+    self.move = self.inv_map[action]
+    self.board.push(chess.Move.from_uci(self.move))
     
     
-
-    # comprobar valoracio stf
-
-    # Restar valoraciones y me da el reward del movimiento
-
-    # REWARDS
-    """
-    guardar valoracion anterior
-
-    calcular con stockfish valoracion nueva
-
-    reward = nueva - antigua
-    """
     if(self.board.is_checkmate()):
-      reward = 1
+      reward = 100
     else:
-      stockfish_val_new = StockfishScore(self.board.fen())
-      reward = -abs(stockfish_val_new-stockfish_val_current)
-      
+      stockfish_val_new = StockfishScore(self.board.fen(), self.stockfish_engine)
+      reward = -abs(stockfish_val_new - self.stockfish_val)
+      self.stockfish_val = stockfish_val_new
 
+      
     # DONE  
     if(self.board.is_game_over()):
       done = True
@@ -519,6 +517,7 @@ class ChessEnv():
 
   def render(self):
     print(self.board)
+    print("Move: ", self.move)
 
 
 
