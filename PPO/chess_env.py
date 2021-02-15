@@ -1,7 +1,8 @@
 import numpy as np
 import chess
 import torch
-
+import chess.engine
+from stockfish import StockfishScore
 
 
 class ChessEnv():
@@ -484,10 +485,10 @@ class ChessEnv():
   def step(self, action):
 
     # comprobar valoracion stockfish
-
+    stockfish_val_current = StockfishScore(self.board.fen())
     self.board.push(chess.Move.from_uci(self.inv_map[action]))
-
-    FEN = self.board.fen()
+    
+    
 
     # comprobar valoracio stf
 
@@ -504,7 +505,8 @@ class ChessEnv():
     if(self.board.is_checkmate()):
       reward = 1
     else:
-      reward = 0
+      stockfish_val_new = StockfishScore(self.board.fen())
+      reward = -abs(stockfish_val_new-stockfish_val_current)
       
 
     # DONE  

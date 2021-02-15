@@ -220,7 +220,7 @@ def train():
             batch_mask = itemgetter(*batch)(masks)
 
             for i in range(len(batch)):
-                logits[i][batch_mask[i]] = -50
+                logits[i][batch_mask[i]] = -10000
             
 
             m = Categorical(logits=logits)
@@ -264,16 +264,16 @@ def evaluate(render):
         state, reward, done, _ = env.step(action)
         total_rw += reward
 
-    env2.close()
+    env.close()
 
     return total_rw
     
 
 num_episodes = 4000
 num_trajectories = 1
-num_time_steps = 50
-batch_size = 10
-train_iters = 8
+num_time_steps = 60
+batch_size = 60
+train_iters = 5
 
 
 
@@ -289,9 +289,6 @@ action_space = 4272
 
 actor = ActorNN().cuda()
 critic = CriticNN().cuda()
-
-# from torchsummary import summary
-# print(summary(actor, (21,8,8)))
 
 actor_optimizer = torch.optim.Adam(actor.parameters(), lr=3e-4)
 critic_optimizer = torch.optim.Adam(critic.parameters(), lr=3e-4)
@@ -311,12 +308,6 @@ ep_reward = 0
 EP_reward = 0
 
 state = env.reset()
-
-
-
-
-# actor.load_state_dict(torch.load(".\models\\actor.pt"))
-# critic.load_state_dict(torch.load(".\models\\critic.pt"))
 
 while num_episodes > episode:
     
@@ -379,10 +370,6 @@ while num_episodes > episode:
     #     print(f"Solved! Running reward is now {running_reward} and the last episode runs to {ep_reward} time steps!")
     #     break
 
-    if(episode % 100 == 0):
-        #save models
-        torch.save(critic.state_dict(), ".\models\\critic.pt")
-        torch.save(actor.state_dict(), ".\models\\actor.pt")
     
 
     
@@ -393,4 +380,3 @@ plt.show()
 #plt.clf()
     
 a = evaluate(render=True)
-
