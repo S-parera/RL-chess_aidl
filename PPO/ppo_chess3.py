@@ -127,7 +127,7 @@ def get_action(state):
 
         buffer.masks.append(mask)
 
-        logits[0][mask] = -1000
+        logits[0][mask] = -float("Inf")
 
         m = Categorical(logits=logits)
 
@@ -220,7 +220,7 @@ def train():
             batch_mask = itemgetter(*batch)(masks)
 
             for i in range(len(batch)):
-                logits[i][batch_mask[i]] = -10000
+                logits[i][batch_mask[i]] = -float("Inf")
             
 
             m = Categorical(logits=logits)

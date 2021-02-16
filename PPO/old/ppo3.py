@@ -224,7 +224,7 @@ def train():
             
             CriticLoss = ((values - rtgs[batch])**2).mean()
 
-            loss = ActorLoss + CriticLoss - 1e-4 * entropy.mean()
+            loss = ActorLoss + 0.5*CriticLoss - 1e-4 * entropy.mean()
 
             actor_optimizer.zero_grad()
             critic_optimizer.zero_grad()
@@ -254,8 +254,8 @@ def evaluate(render):
     
 
 num_episodes = 2000
-num_trajectories = 4
-num_time_steps = 50
+num_trajectories = 20
+num_time_steps = 500
 batch_size = 5
 train_iters = 4
 
@@ -271,8 +271,8 @@ action_space = env.action_space.n
 actor = ActorNN(action_space, observation_space)
 critic = CriticNN(observation_space)
 
-actor_optimizer = torch.optim.Adam(actor.parameters(), lr=3e-4)
-critic_optimizer = torch.optim.Adam(critic.parameters(), lr=3e-4)
+actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
+critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
 
 buffer = MemoryBuffer(num_trajectories, num_time_steps, observation_space, action_space)
 

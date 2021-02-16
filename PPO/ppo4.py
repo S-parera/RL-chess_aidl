@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.distributions.categorical import Categorical
+from torch.utils.tensorboard import SummaryWriter
+
 
 import matplotlib.pyplot as plt
 import gym
@@ -142,7 +144,7 @@ def create_batches():
     # print("rtg len: ", rtgs.shape[0])
     # print("log len: ", log_probs.shape[0])
 
-    # advantages = normalize(advantages)
+    advantages = normalize(advantages)
 
     n = advantages.shape[0]
     batch_starts = np.arange(0, n, batch_size)
@@ -179,13 +181,13 @@ def train():
             
             CriticLoss = ((values - rtgs[batch].cuda())**2).mean()
 
-            loss = ActorLoss + CriticLoss - 1e-4 * entropy.mean()
+            writer.add_scalar("Policy Loss", ActorLoss, total_time_steps)
+            writer.add_scalar("Value Loss", CriticLoss, total_time_steps)
+
+            loss = ActorLoss + 0.5*CriticLoss - 1e-3 * entropy.mean()
 
             actor_optimizer.zero_grad()
             critic_optimizer.zero_grad()
-
-            # ActorLoss.backward()
-            # CriticLoss.backward()
 
             loss.backward()
 
@@ -193,17 +195,17 @@ def train():
             critic_optimizer.step()
 
 def evaluate(render):
-    state, done = env2.reset(), False
+    state, done = env.reset(), False
     total_rw = 0
     while not done:
         if render:
-            env2.render()
+            env.render()
         action, value, log_prob = get_action(state)
         # Step
-        state, reward, done, _ = env2.step(action)
+        state, reward, done, _ = env.step(action)
         total_rw += reward
 
-    env2.close()
+    env.close()
 
     return total_rw
     
@@ -218,10 +220,11 @@ train_iters = 4
 
 total_time_steps = 0
 
-env = gym.make("CartPole-v1")
-# env2 = gym.make("CartPole-v1")
-# env = gym.make("LunarLander-v2")
 
+# env_name = "CartPole-v1"
+env_name = "LunarLander-v2"
+
+env = gym.make(env_name)
 
 
 
@@ -231,8 +234,8 @@ action_space = env.action_space.n
 actor = ActorNN(action_space, observation_space).cuda()
 critic = CriticNN(observation_space).cuda()
 
-actor_optimizer = torch.optim.Adam(actor.parameters(), lr=3e-4)
-critic_optimizer = torch.optim.Adam(critic.parameters(), lr=3e-4)
+actor_optimizer = torch.optim.Adam(actor.parameters(), lr=5e-3)
+critic_optimizer = torch.optim.Adam(critic.parameters(), lr=5e-3)
 
 buffer = MemoryBuffer(num_trajectories, num_time_steps, observation_space, action_space)
 
@@ -244,11 +247,14 @@ running_reward = -500
 
 traj = 0
 
-episode = 1
+episode = 0
 ep_reward = 0
 EP_reward = 0
 
 state = env.reset()
+
+writer = SummaryWriter(log_dir="./logs", filename_suffix=env_name, comment=env_name)
+
 
 while num_episodes > episode:
     
@@ -281,6 +287,9 @@ while num_episodes > episode:
             EP_reward = 0
             running_reward = 0.1 * ep_reward + (1 - 0.1) * running_reward
             print(f"Episode: {episode} Average reward {ep_reward:.2f} Running reward: {running_reward:.2f} Total time steps simulated: {total_time_steps}")
+
+            writer.add_scalar("Average Episode Reward", ep_reward, episode)
+
             average_rewards.append(ep_reward)
             break
 
