@@ -4,6 +4,7 @@ from torch.distributions.categorical import Categorical
 import torch.optim as optim
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 
 
 import numpy as np
@@ -205,7 +206,7 @@ def train(data_loader):
 
             values = critic(states)
             
-            CriticLoss = ((values - rtgs)**2)
+            CriticLoss = F.mse_loss(values.squeeze(1), rtgs)
 
             loss = ActorLoss.mean() + 0.5*CriticLoss.mean() - 1e-2 * entropy.mean()
 
@@ -225,7 +226,7 @@ def train(data_loader):
 
 #create env
 
-env_name = "CartPole-v1"
+env_name = "LunarLander-v2"
 
 env = gym.make(env_name)
 

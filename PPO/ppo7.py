@@ -18,19 +18,11 @@ from tqdm import tqdm
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def cumulative_sum(array, gamma=1.0):
-    curr = 0
-    cumulative_array = []
 
-    for a in array[::-1]:
-        curr = a + gamma * curr
-        cumulative_array.append(curr)
-
-    return cumulative_array[::-1]
 
 
 class Episode:
-    def __init__(self, gamma=0.99, lambd=0.95):
+    def __init__(self):
         self.observations = []
         self.actions = []
         self.advantages = []
@@ -38,15 +30,6 @@ class Episode:
         self.rewards_to_go = []
         self.values = []
         self.log_probabilities = []
-        self.gamma = gamma
-        self.lambd = lambd
-
-    
-
-def normalize_list(array):
-    array = np.array(array)
-    array = (array - np.mean(array)) / (np.std(array) + 1e-5)
-    return array.tolist()
 
 
 class History(Dataset):
@@ -129,9 +112,14 @@ class ValueNetwork(torch.nn.Module):
         
         y = self.mlp(x)
 
-        return y.squeeze(1)
+        return y.squeeze(1) 
 
 
+
+def normalize_list(array):
+    array = np.array(array)
+    array = (array - np.mean(array)) / (np.std(array) + 1e-5)
+    return array.tolist()
 
 def get_action(state):
 
@@ -139,7 +127,7 @@ def get_action(state):
         state = torch.from_numpy(state).float().to(device)
 
     if len(state.size()) == 1:
-        state = state.unsqueeze(0)
+        state = state.unsqueeze(0) # Create batch dimension
 
     logits = policy_model(state)
 
@@ -153,16 +141,52 @@ def get_action(state):
 
     return action.item(), log_probability.item(), value.item()
 
+# def cumulative_sum(array, discount=1.0):
+#     curr = 0
+#     cumulative_array = []
+
+#     for a in array[::-1]:
+#         curr = a + discount * curr
+#         cumulative_array.append(curr)
+
+#     return cumulative_array[::-1]
+
+def cumulative_sum(vector, discount):
+    out = np.zeros_like(vector)
+    n = vector.shape[0]
+    for i in reversed(range(n)):
+        out[i] =  vector[i] + discount * (out[i+1] if i+1 < n else 0)
+    return out.tolist()
 
 def end_episode(last_value):
+    # Calculate trajectory rewards to go
+    # Calculate trajectory GAE
+
+    # REWARDS TO GO
+
+
     rewards = np.array(episode.rewards + [last_value])
     values = np.array(episode.values + [last_value])
 
-    deltas = rewards[:-1] + episode.gamma * values[1:] - values[:-1]
+    episode.rewards_to_go = cumulative_sum(rewards, gamma)[:-1]
 
-    episode.advantages = cumulative_sum(deltas.tolist(), gamma=episode.gamma * episode.lambd)
+    # GAE
+    
+    deltas = rewards[:-1] + gamma * values[1:] - values[:-1]
 
-    episode.rewards_to_go = cumulative_sum(rewards.tolist(), gamma=episode.gamma)[:-1]
+    episode.advantages = cumulative_sum(deltas, gamma * gae_lambda)
+
+
+
+# def end_episode(last_value):
+#     rewards = np.array(episode.rewards + [last_value])
+#     values = np.array(episode.values + [last_value])
+
+#     deltas = rewards[:-1] + gamma * values[1:] - values[:-1]
+
+#     episode.advantages = cumulative_sum(deltas.tolist(), discount=gamma * gae_lambda)
+
+#     episode.rewards_to_go = cumulative_sum(rewards.tolist(), discount=gamma)[:-1]
 
 
 
@@ -210,7 +234,7 @@ def train_network(data_loader):
             Actor_loss = -torch.min(surrogate_1, surrogate_2).mean() - c1 * entropy.mean()
 
             Critic_loss = F.mse_loss(values, rewards_to_go)
-
+            # Critic_loss = ((values - rewards_to_go)**2)
 
 
             policy_optimizer.zero_grad()
@@ -269,6 +293,9 @@ max_timesteps = 200
 batch_size = 32
 
 max_iterations = 200
+
+gamma = 0.99
+gae_lambda = 0.95
 
 history = History()
 
@@ -364,7 +391,7 @@ for ite in tqdm(range(max_iterations)):
 
     history.free_memory()
 
-    print("\n", running_reward)
+    # print("\n", running_reward)
 
     writer.add_scalar("Running Reward", running_reward, epoch_ite)
 

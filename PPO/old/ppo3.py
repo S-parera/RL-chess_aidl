@@ -214,7 +214,7 @@ def train():
             log_probs = m.log_prob(actions[batch])
             ratio = (log_probs - old_log_probs[batch]).exp()
 
-            actor_optimizer.zero_grad()
+          
             surr1 = ratio * advantages[batch]
             surr2 = torch.clamp(ratio, 1-0.2, 1+0.2) * advantages[batch]
 
@@ -222,9 +222,9 @@ def train():
 
             values = critic(states[batch])
             
-            CriticLoss = ((values - rtgs[batch])**2).mean()
+            CriticLoss = ((values.squeeze(1) - rtgs[batch])**2).mean()
 
-            loss = ActorLoss + 0.5*CriticLoss - 1e-4 * entropy.mean()
+            loss = ActorLoss + 0.5*CriticLoss - 1e-2 * entropy.mean()
 
             actor_optimizer.zero_grad()
             critic_optimizer.zero_grad()
@@ -253,9 +253,9 @@ def evaluate(render):
     return total_rw
     
 
-num_episodes = 2000
-num_trajectories = 20
-num_time_steps = 500
+num_episodes = 500
+num_trajectories = 4
+num_time_steps = 200
 batch_size = 5
 train_iters = 4
 
