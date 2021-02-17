@@ -20,7 +20,7 @@ import time
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
+torch.manual_seed(0)
 
 
 class Episode:
@@ -265,8 +265,8 @@ def train_network(data_loader):
 
 
 
-# env_name = "CartPole-v1"
-env_name = "LunarLander-v2"
+env_name = "CartPole-v1"
+# env_name = "LunarLander-v2"
 
 learning_rate = 1e-3
 state_scale = 1.0
@@ -288,9 +288,9 @@ policy_optimizer = optim.Adam(policy_model.parameters(), lr=learning_rate)
 n_epoch = 4
 
 max_episodes = 10
-max_timesteps = 200
+max_timesteps = 50
 
-batch_size = 32
+batch_size = 64
 
 max_iterations = 200
 
@@ -304,13 +304,15 @@ episode_ite = 0
 
 running_reward = -500
 
-timestr = time.strftime("%d_%m_%Y-%H-%M-%S")
+timestr = time.strftime("%d%m%Y-%H%M%S-")
 
-log_dir = "./runs/" + env_name + timestr
+log_dir = "./runs/" + timestr + env_name + "-BS" + str(batch_size) + "-E" + \
+        str(max_episodes) + "-MT" + str(max_timesteps) + "-NE" + str(n_epoch) + \
+        "-LR" + str(learning_rate) + "-G" + str(gamma) + "-L" + str(gae_lambda)
 
 writer = SummaryWriter(log_dir=log_dir)
 
-for ite in tqdm(range(max_iterations)):
+for ite in tqdm(range(max_iterations), ascii=True):
 
     # if ite % 50 == 0:
     #     torch.save(
