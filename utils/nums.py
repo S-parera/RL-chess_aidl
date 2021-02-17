@@ -1,23 +1,45 @@
-import numpy as np
+class Prova:
+    def __init__(self):
+        self.reward = []
 
-num_time_steps = 5
-num_trajectories = 2
+    def reset_ep(self):
+        self.reward = []
+
+class History:
+    def __init__(self):
+        self.episodes = []
+
+
+episode = Prova()
+
+history = History()
+
+print(episode.reward)
+
+episode.reward = [1,2,3,4]
+
+
+history.episodes.append(episode)
 
 
 
-actions = np.zeros((num_trajectories, num_time_steps), dtype=np.float32)
+episode = Prova()
 
-actions[0][1]= 3
-actions[0][3]= 3
-actions[0][4]= 3
+episode.reward = [5,6,7,8]
 
-actions[1][0]= 4
-actions[1][3]= 4
-actions[1][4]= 4
+history.episodes.append(episode)
 
-print(actions.shape)
 
-ones = np.ones((2,3))
+for i in range(len(history.episodes)):
 
-print(ones.sum())
+    print(history.episodes[i].reward)
 
+
+l = [[1,2],[3,4]]
+
+a =[]
+
+for e in l:
+    a+=e[:]
+
+print(a)

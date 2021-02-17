@@ -212,17 +212,17 @@ def evaluate(render):
 
 num_episodes = 1000
 num_trajectories = 1
-num_time_steps = 20
-batch_size = 5
-train_iters = 4
+num_time_steps = 200
+batch_size = 10
+train_iters = 5
 
 
 
 total_time_steps = 0
 
 
-# env_name = "CartPole-v1"
-env_name = "LunarLander-v2"
+env_name = "CartPole-v1"
+# env_name = "LunarLander-v2"
 
 env = gym.make(env_name)
 
@@ -234,8 +234,8 @@ action_space = env.action_space.n
 actor = ActorNN(action_space, observation_space).cuda()
 critic = CriticNN(observation_space).cuda()
 
-actor_optimizer = torch.optim.Adam(actor.parameters(), lr=5e-3)
-critic_optimizer = torch.optim.Adam(critic.parameters(), lr=5e-3)
+actor_optimizer = torch.optim.Adam(actor.parameters(), lr=1e-3)
+critic_optimizer = torch.optim.Adam(critic.parameters(), lr=1e-3)
 
 buffer = MemoryBuffer(num_trajectories, num_time_steps, observation_space, action_space)
 
