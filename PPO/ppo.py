@@ -16,6 +16,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
+import time
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -236,7 +238,6 @@ def train_network(data_loader):
             Critic_loss = F.mse_loss(values, rewards_to_go)
             # Critic_loss = ((values - rewards_to_go)**2)
 
-
             policy_optimizer.zero_grad()
 
             value_optimizer.zero_grad()
@@ -263,7 +264,6 @@ def train_network(data_loader):
     return policy_epoch_losses, value_epoch_losses
 
 
-writer = SummaryWriter()
 
 # env_name = "CartPole-v1"
 env_name = "LunarLander-v2"
@@ -303,6 +303,12 @@ epoch_ite = 0
 episode_ite = 0
 
 running_reward = -500
+
+timestr = time.strftime("%d_%m_%Y-%H-%M-%S")
+
+log_dir = "./runs/" + env_name + timestr
+
+writer = SummaryWriter(log_dir=log_dir)
 
 for ite in tqdm(range(max_iterations)):
 
