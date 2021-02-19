@@ -20,6 +20,8 @@ import time
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# device = torch.device("cpu")
+
 torch.manual_seed(0)
 
 
@@ -265,8 +267,8 @@ def train_network(data_loader):
 
 
 
-env_name = "CartPole-v1"
-# env_name = "LunarLander-v2"
+# env_name = "CartPole-v1"
+env_name = "LunarLander-v2"
 
 learning_rate = 1e-3
 state_scale = 1.0
@@ -288,9 +290,9 @@ policy_optimizer = optim.Adam(policy_model.parameters(), lr=learning_rate)
 n_epoch = 4
 
 max_episodes = 10
-max_timesteps = 50
+max_timesteps = 200
 
-batch_size = 64
+batch_size = 32
 
 max_iterations = 200
 
@@ -386,6 +388,7 @@ for ite in tqdm(range(max_iterations), ascii=True):
     
     # Here we have collected N trajectories.
     history.build_dataset()
+
     data_loader = DataLoader(history, batch_size=batch_size, shuffle=True)
 
 
