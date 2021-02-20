@@ -7,13 +7,21 @@ state = env.reset(initial_state=True)
 
 legal_actions = env.legal_actions()
 
-print(len(legal_actions))
+mask = torch.zeros(10)
 
-print(legal_actions)
+legal_actions = torch.tensor([2,5,7,9])
 
-mask = torch.tensor(legal_actions)
+mask.index_fill_(0,legal_actions, 1)
 
 print(mask)
+
+illegal_actions = torch.tensor(range(10)).float()
+print(illegal_actions)
+
+illegal_actions[mask == 0] = -float("Inf")
+
+print(illegal_actions)
+
 
 
 # a = torch.tensor([1,2,3,4]).float()

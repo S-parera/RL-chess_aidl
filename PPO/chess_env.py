@@ -477,6 +477,7 @@ class ChessEnv():
 
 
   def reset(self, initial_state=False):
+
     if initial_state:
       self.board = chess.Board()
     else:

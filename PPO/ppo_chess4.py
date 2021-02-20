@@ -18,9 +18,11 @@ from tqdm import tqdm
 
 import time
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+from chess_env import ChessEnv
 
-# device = torch.device("cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+device = torch.device("cpu")
 
 torch.manual_seed(0)
 
@@ -34,6 +36,7 @@ class Episode:
         self.rewards_to_go = []
         self.values = []
         self.log_probabilities = []
+        self.masks = []
 
 
 class History(Dataset):
@@ -45,6 +48,7 @@ class History(Dataset):
         self.rewards = []
         self.rewards_to_go = []
         self.log_probabilities = []
+        self.masks = []
 
     def free_memory(self):
         del self.episodes[:]
@@ -54,6 +58,7 @@ class History(Dataset):
         del self.rewards[:]
         del self.rewards_to_go[:]
         del self.log_probabilities[:]
+        del self.masks[:]
 
     def build_dataset(self):
         for episode in self.episodes:
@@ -63,6 +68,7 @@ class History(Dataset):
             self.rewards += episode.rewards
             self.rewards_to_go += episode.rewards_to_go
             self.log_probabilities += episode.log_probabilities
+            self.masks += episode.masks
 
        
 
@@ -78,45 +84,82 @@ class History(Dataset):
             self.advantages[idx],
             self.log_probabilities[idx],
             self.rewards_to_go[idx],
+            self.masks[idx],
         )
 
-class PolicyNetwork(torch.nn.Module):
-    def __init__(self, n=4, in_dim=128):
-        super(PolicyNetwork, self).__init__()
-
+class ActorNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1=nn.Conv2d(in_channels=21, out_channels=21*4, kernel_size=3,padding=1)
+        self.relu1=nn.ReLU(inplace=True)
+        self.maxpool1=nn.MaxPool2d(2)
+        self.conv2=nn.Conv2d(in_channels=21*4, out_channels=21*4*4, kernel_size=3,padding=1)
+        self.relu2=nn.ReLU(inplace=True)
+        self.maxpool2 = nn.MaxPool2d(2)
+        self.conv3=nn.Conv2d(in_channels=21*4*4, out_channels=21*4*4*4, kernel_size=3,padding=1)
+        self.relu3=nn.ReLU(inplace=True)
+        self.maxpool3=nn.MaxPool2d(2)
         self.mlp = nn.Sequential(
-                nn.Linear(in_dim, 256),
-                nn.ReLU(),
-                nn.Linear(256, 256),
-                nn.ReLU(),
-                nn.Linear(256, n)
+            nn.Linear(1344,2688),
+            nn.BatchNorm1d(2688),
+            nn.ReLU(inplace=True),
+            nn.Linear(2688,4272)
         )
+        # Need to add more layers to make the receptive field big enough to capture the entire board. Consider including kernels of size 5 or 3, 3 or 4 layers. 
+        # Better not to use padding as it might consider movements outside of the board.
 
     def forward(self, x):
-
-        y = self.mlp(x)
-
+        y = self.conv1(x)
+        y = self.relu1(y)
+        y = self.maxpool1(y)
+        y = self.conv2(y)
+        y = self.relu2(y)
+        y = self.maxpool2(y)
+        y = self.conv3(y)
+        y = self.relu3(y)
+        y = self.maxpool3(y)
+        y = y.view(x.size(0), -1) 
+        y = self.mlp(y)
+    
+        # y = F.softmax(y)
         return y
 
-
-
-class ValueNetwork(torch.nn.Module):
-    def __init__(self, in_dim=128):
-        super(ValueNetwork, self).__init__()
-
+class CriticNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1=nn.Conv2d(in_channels=21, out_channels=21*4, kernel_size=3,padding=1)
+        self.relu1=nn.ReLU(inplace=True)
+        self.maxpool1=nn.MaxPool2d(2)
+        self.conv2=nn.Conv2d(in_channels=21*4, out_channels=21*4*4, kernel_size=3,padding=1)
+        self.relu2=nn.ReLU(inplace=True)
+        self.maxpool2 = nn.MaxPool2d(2)
+        self.conv3=nn.Conv2d(in_channels=21*4*4, out_channels=21*4*4*4, kernel_size=3,padding=1)
+        self.relu3=nn.ReLU(inplace=True)
+        self.maxpool3=nn.MaxPool2d(2)
         self.mlp = nn.Sequential(
-                nn.Linear(in_dim, 256),
-                nn.ReLU(),
-                nn.Linear(256, 256),
-                nn.ReLU(),
-                nn.Linear(256, 1)
+            nn.Linear(1344,512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(inplace=True),
+            nn.Linear(512,1)
         )
-
+        # Need to add more layers to make the receptive field big enough to capture the entire board. Consider including kernels of size 5 or 3, 3 or 4 layers. 
+        # Better not to use padding as it might consider movements outside of the board.
+        self.saved_log_probs = []
+        self.rewards = []
     def forward(self, x):
-        
-        y = self.mlp(x)
-
-        return y.squeeze(1) 
+        y = self.conv1(x)
+        y = self.relu1(y)
+        y = self.maxpool1(y)
+        y = self.conv2(y)
+        y = self.relu2(y)
+        y = self.maxpool2(y)
+        y = self.conv3(y)
+        y = self.relu3(y)
+        y = self.maxpool3(y)
+        y = y.view(x.size(0), -1) 
+        y = self.mlp(y)
+        # y = F.softmax(y)
+        return y.squeeze(1)
 
 
 
@@ -127,13 +170,22 @@ def normalize_list(array):
 
 def get_action(state):
 
+    policy_model.eval()
+    value_model.eval()
+
     if not state is torch.Tensor:
         state = torch.from_numpy(state).float().to(device)
 
-    if len(state.size()) == 1:
+    if state.shape[0] != 1:
         state = state.unsqueeze(0) # Create batch dimension
 
     logits = policy_model(state)
+
+    legal_actions = torch.tensor(env.legal_actions()).to(device)
+    mask = torch.zeros(4272).to(device)
+    mask.index_fill_(0,legal_actions, 1)
+    logits[0][mask == 0] = -float("Inf")
+
 
     m = Categorical(logits=logits)
 
@@ -143,17 +195,8 @@ def get_action(state):
 
     value = value_model(state)
 
-    return action.item(), log_probability.item(), value.item()
+    return action.item(), log_probability.item(), value.item(), mask
 
-# def cumulative_sum(array, discount=1.0):
-#     curr = 0
-#     cumulative_array = []
-
-#     for a in array[::-1]:
-#         curr = a + discount * curr
-#         cumulative_array.append(curr)
-
-#     return cumulative_array[::-1]
 
 def cumulative_sum(vector, discount):
     out = np.zeros_like(vector)
@@ -182,23 +225,12 @@ def end_episode(last_value):
 
 
 
-# def end_episode(last_value):
-#     rewards = np.array(episode.rewards + [last_value])
-#     values = np.array(episode.values + [last_value])
-
-#     deltas = rewards[:-1] + gamma * values[1:] - values[:-1]
-
-#     episode.advantages = cumulative_sum(deltas.tolist(), discount=gamma * gae_lambda)
-
-#     episode.rewards_to_go = cumulative_sum(rewards.tolist(), discount=gamma)[:-1]
-
-
-
-
-
 def train_network(data_loader):
     policy_epoch_losses = []
     value_epoch_losses = []
+
+    policy_model.train()
+    value_model.train()
 
     c1 = 0.01
 
@@ -207,16 +239,20 @@ def train_network(data_loader):
         policy_losses = []
         value_losses = []
 
-        for observations, actions, advantages, log_probabilities, rewards_to_go in data_loader:
+        for observations, actions, advantages, log_probabilities, rewards_to_go, masks in data_loader:
             observations = observations.float().to(device)
             actions = actions.long().to(device)
             advantages = advantages.float().to(device)
             old_log_probabilities = log_probabilities.float().to(device)
             rewards_to_go = rewards_to_go.float().to(device)
+            masks = masks.to(device)
 
             
-
             logits = policy_model(observations)
+
+            
+            for i in range(masks.shape[0]):
+                logits[i][masks[i] == 0] = -float("Inf")
 
             m = Categorical(logits=logits)
 
@@ -238,15 +274,11 @@ def train_network(data_loader):
             Actor_loss = -torch.min(surrogate_1, surrogate_2).mean() - c1 * entropy.mean()
 
             Critic_loss = F.mse_loss(values, rewards_to_go)
-            # Critic_loss = ((values - rewards_to_go)**2)
 
             policy_optimizer.zero_grad()
 
             value_optimizer.zero_grad()
 
-            # Actor_loss.backward()
-           
-            # Critic_loss.backward()
             loss = Actor_loss + Critic_loss
             loss.backward()
 
@@ -268,33 +300,37 @@ def train_network(data_loader):
 
 
 # env_name = "CartPole-v1"
-env_name = "LunarLander-v2"
+# env_name = "LunarLander-v2"
+env_name = "Chess"
 
-learning_rate = 1e-3
+
+learning_rate = 5e-4
 state_scale = 1.0
 reward_scale = 1.0
 clip = 0.2
 
-env = gym.make(env_name)
+# env = gym.make(env_name)
+env = ChessEnv()
+
 observation = env.reset()
 
-n_actions = env.action_space.n
-feature_dim = observation.size
+# n_actions = env.action_space.n
+# feature_dim = observation.size
 
-value_model = ValueNetwork(in_dim=feature_dim).to(device)
+value_model = CriticNN().to(device)
 value_optimizer = optim.Adam(value_model.parameters(), lr=learning_rate)
 
-policy_model = PolicyNetwork(in_dim=feature_dim, n=n_actions).to(device)
+policy_model = ActorNN().to(device)
 policy_optimizer = optim.Adam(policy_model.parameters(), lr=learning_rate)
 
 n_epoch = 4
 
-max_episodes = 10
-max_timesteps = 200
+max_episodes = 4
+max_timesteps = 50
 
-batch_size = 32
+batch_size = 16
 
-max_iterations = 200
+max_iterations = 300
 
 gamma = 0.99
 gae_lambda = 0.95
@@ -303,8 +339,9 @@ history = History()
 
 epoch_ite = 0
 episode_ite = 0
+time_steps_ite = 0
 
-running_reward = -500
+running_reward = -1000
 
 timestr = time.strftime("%d%m%Y-%H%M%S-")
 
@@ -326,6 +363,8 @@ for ite in tqdm(range(max_iterations), ascii=True):
     #         Path(log_dir) / (env_name + f"_{str(ite)}_value.pth"),
     #     )
 
+    print("\nSimulating")
+
     observation = env.reset()
     ep_reward = 0
     for episode_i in range(max_episodes):
@@ -335,9 +374,11 @@ for ite in tqdm(range(max_iterations), ascii=True):
         for timestep in range(max_timesteps):
             # Loop through time_steps
 
-            action, log_probability, value = get_action(observation / state_scale)
+            # env.render()
 
-            new_observation, reward, done, info = env.step(action)
+            action, log_probability, value, mask = get_action(observation / state_scale)
+
+            new_observation, reward, done = env.step(action)
 
             ep_reward +=reward
 
@@ -346,7 +387,14 @@ for ite in tqdm(range(max_iterations), ascii=True):
             episode.rewards.append(reward / reward_scale)
             episode.values.append(value)
             episode.log_probabilities.append(log_probability)
+            episode.masks.append(mask)
 
+            time_steps_ite += 1
+            writer.add_scalar(
+                "Movement Probabilities",
+                np.exp(log_probability),
+                time_steps_ite,
+            )
  
 
             observation = new_observation
@@ -360,22 +408,18 @@ for ite in tqdm(range(max_iterations), ascii=True):
                     ep_reward,
                     episode_ite,
                 )
-                writer.add_scalar(
-                    "Average Probabilities",
-                    np.exp(np.mean(episode.log_probabilities)),
-                    episode_ite,
-                )
+                
 
                 running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
 
                 #Reset episode rewards and enviroment because one episode finished
                 ep_reward = 0
-                observation = env.reset()
+                observation = env.reset(np.random.randint(0,100)%10==0)
                 break
 
             if timestep == max_timesteps - 1:
                 # Episode didn't finish so we have to append value to RTGs and advantages
-                _, _, value = get_action(observation / state_scale)
+                _, _, value, _ = get_action(observation / state_scale)
                 end_episode(last_value=value)
 
         
@@ -391,6 +435,7 @@ for ite in tqdm(range(max_iterations), ascii=True):
 
     data_loader = DataLoader(history, batch_size=batch_size, shuffle=True)
 
+    print("Training")
 
     policy_loss, value_loss = train_network(data_loader)
 
@@ -406,11 +451,9 @@ for ite in tqdm(range(max_iterations), ascii=True):
 
     writer.add_scalar("Running Reward", running_reward, epoch_ite)
 
-    for name, weight in policy_model.named_parameters():
-        writer.add_histogram(name,weight, epoch_ite)
-        writer.add_histogram(f'{name}.grad',weight.grad, epoch_ite)
 
 
-    if (running_reward > env.spec.reward_threshold):
+
+    if (running_reward > 0):
         print("\nSolved!")
         break
