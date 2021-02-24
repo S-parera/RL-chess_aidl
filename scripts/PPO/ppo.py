@@ -18,20 +18,18 @@ from network import PolicyNetwork, ValueNetwork
 from collect_trajectories import collect
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# device = torch.device("cpu")
+device = torch.device("cpu")
 
 
-def train_network(data_loader, policy_model, value_model, policy_optimizer, value_optimizer ,n_epoch, clip, train_ite, writer):
+def train_network(data_loader, policy_model, value_model, policy_optimizer, value_optimizer ,n_epoch, clip, train_ite, writer, entropy_coefficient):
 
     policy_model.train()
     value_model.train()
 
     policy_epoch_losses = []
     value_epoch_losses = []
-
-    c1 = 0.01
 
     for i in range(n_epoch):
 
@@ -60,7 +58,7 @@ def train_network(data_loader, policy_model, value_model, policy_optimizer, valu
             surrogate_1 = probability_ratios * advantages
             surrogate_2 = clipped_probabiliy_ratios * advantages
 
-            Actor_loss = -torch.min(surrogate_1, surrogate_2).mean() - c1 * entropy.mean()
+            Actor_loss = -torch.min(surrogate_1, surrogate_2).mean() - entropy_coefficient * entropy.mean()
 
             Critic_loss = F.mse_loss(values, rewards_to_go)
 
@@ -109,6 +107,7 @@ def main():
     max_iterations = 200
     gamma = 0.99
     gae_lambda = 0.95
+    entropy_coefficient = 0.01
 
     # NETWORK
     value_model = ValueNetwork(in_dim=feature_dim).to(device)
@@ -127,7 +126,6 @@ def main():
     running_reward = -500
 
     # TENSORBOARD 
-
     timestr = time.strftime("%d%m%Y-%H%M%S-")
 
     log_dir = "./runs/" + timestr + env_name + "-BS" + str(batch_size) + "-E" + \
@@ -136,21 +134,40 @@ def main():
 
     writer = SummaryWriter(log_dir=log_dir)
 
+    # LOAD MODEL
+    # Create folder models
+    if not Path("./models").exists():
+        print("Creating Models folder")
+        Path("./models").mkdir()
+
+    model_path = Path("./models/" + env_name + ".tar")
+    if model_path.exists():
+        print("Loading model!")
+        #Load model
+        checkpoint = torch.load(model_path)
+        policy_model.load_state_dict(checkpoint['policy_model'])
+        policy_optimizer.load_state_dict(checkpoint['policy_optimizer'])
+        value_model.load_state_dict(checkpoint['value_model'])
+        value_optimizer.load_state_dict(checkpoint['value_optimizer'])
+        running_reward = checkpoint['running_reward']
+    
+
     for ite in tqdm(range(max_iterations), ascii=True):
 
-        # if ite % 50 == 0:
-        #     torch.save(
-        #         policy_model.state_dict(),
-        #         Path(log_dir) / (env_name + f"_{str(ite)}_policy.pth"),
-        #     )
-        #     torch.save(
-        #         value_model.state_dict(),
-        #         Path(log_dir) / (env_name + f"_{str(ite)}_value.pth"),
-        #     )
+        if ite % 5 == 0:
+            torch.save({
+                'policy_model': policy_model.state_dict(),
+                'policy_optimizer': policy_optimizer.state_dict(),
+                'value_model': value_model.state_dict(),
+                'value_optimizer': value_optimizer.state_dict(),
+                'running_reward': running_reward}, model_path)
+
 
         
-        episode_ite, running_reward = collect(episode_ite, running_reward, env, max_episodes, max_timesteps, state_scale,
-                reward_scale, writer, history, policy_model, value_model, gamma, gae_lambda, device)
+        episode_ite, running_reward = collect(episode_ite, running_reward, env,
+                                            max_episodes, max_timesteps, state_scale,
+                                            reward_scale, writer, history, policy_model,
+                                            value_model, gamma, gae_lambda, device)
         
         # Here we have collected N trajectories.
         history.build_dataset()
@@ -158,7 +175,9 @@ def main():
         data_loader = DataLoader(history, batch_size=batch_size, shuffle=True, drop_last=True)
 
 
-        policy_loss, value_loss, train_ite = train_network(data_loader, policy_model, value_model, policy_optimizer, value_optimizer ,n_epoch, clip, train_ite, writer)
+        policy_loss, value_loss, train_ite = train_network(data_loader, policy_model, value_model,
+                                                        policy_optimizer, value_optimizer ,n_epoch, clip,
+                                                        train_ite, writer, entropy_coefficient)
 
 
         for p_l, v_l in zip(policy_loss, value_loss):
