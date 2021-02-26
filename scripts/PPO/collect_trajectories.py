@@ -8,6 +8,8 @@ from memory import Episode, History
 def collect(episode_ite, running_reward, env, max_episodes, max_timesteps, state_scale,
             reward_scale, writer, history, policy_model, value_model, gamma, lambda_gae, device):
 
+    
+
     observation = env.reset()
     ep_reward = 0
     for episode_i in range(max_episodes):
@@ -108,3 +110,4 @@ def end_episode(episode, last_value, gamma, gae_lambda):
     deltas = rewards[:-1] + gamma * values[1:] - values[:-1]
 
     episode.advantages = cumulative_sum(deltas, gamma * gae_lambda)
+
