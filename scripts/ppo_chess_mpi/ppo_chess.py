@@ -109,7 +109,7 @@ def main():
     n_epoch = 4
     max_episodes = 4
     max_timesteps = 50
-    batch_size = 32
+    batch_size = 16
     max_iterations = 200
     gamma = 0.99
     gae_lambda = 0.95
@@ -121,7 +121,8 @@ def main():
 
     policy_model = PolicyNetwork().to(device)
     policy_optimizer = optim.Adam(policy_model.parameters(), lr=learning_rate)
-    
+
+   
     # INIT
     history = History()
     observation = env.reset()
@@ -169,6 +170,7 @@ def main():
                 'running_reward': running_reward}, model_path)
 
         print("\nSimulating")
+        start_simulation = time.perf_counter()
         
         q = queue.SimpleQueue()
 
@@ -185,12 +187,14 @@ def main():
             t.join()
 
         
+        
 
-        # for i in range(2):
+        # for i in range(max_episodes):
         #     collect(q, env_name,
         #                         max_timesteps, state_scale,reward_scale,
         #                         policy_model, value_model, gamma,
         #                         gae_lambda, device)
+
 
 
         avg_episode_reward = []
@@ -199,6 +203,9 @@ def main():
             episode = q.get()
             history.episodes.append(episode)
             avg_episode_reward.append(episode.reward)
+        
+        end_simulation = time.perf_counter()
+        print("Simulation time: ", end_simulation-start_simulation)
         
         for ep_reward in avg_episode_reward:
             running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
@@ -213,10 +220,16 @@ def main():
 
         data_loader = DataLoader(history, batch_size=batch_size, shuffle=True, drop_last=True)
 
+        end_joining_episode = time.perf_counter()
+        print("Joining buffers time: ", end_joining_episode-end_simulation)
+
         print("Training")
         policy_loss, value_loss, train_ite = train_network(data_loader, policy_model, value_model,
                                                         policy_optimizer, value_optimizer ,n_epoch, clip,
                                                         train_ite, writer, entropy_coefficient)
+
+        end_training = time.perf_counter()
+        print("Training time: ", end_training-end_joining_episode)
 
 
         for p_l, v_l in zip(policy_loss, value_loss):

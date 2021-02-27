@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F 
 import torch
 
-# from torchsummary import summary
+from torchsummary import summary
 
 class ResBlock(nn.Module):
     def __init__(self, inplanes=256, planes=256, stride=1, downsample=None):
@@ -60,7 +60,7 @@ class PolicyNetwork(nn.Module):
         self.conv1=nn.Conv2d(in_channels=21, out_channels=256, kernel_size=3,padding=1)
         self.bn1 = nn.BatchNorm2d(256)
         self.relu1=nn.ReLU(inplace=True)
-        for block in range(13):
+        for block in range(1):
             setattr(self, "res_%i" % block,ResBlock())
         self.outblockactor = OutBlockactor()
 
@@ -69,7 +69,7 @@ class PolicyNetwork(nn.Module):
         y = self.conv1(x)
         y = self.bn1(y)
         y = self.relu1(y)
-        for block in range(13):
+        for block in range(1):
             y = getattr(self, "res_%i" % block)(y)
         y = self.outblockactor(y)
         return y
@@ -80,7 +80,7 @@ class ValueNetwork(nn.Module):
         self.conv1=nn.Conv2d(in_channels=21, out_channels=256, kernel_size=3,padding=1)
         self.bn1 = nn.BatchNorm2d(256)
         self.relu1=nn.ReLU(inplace=True)
-        for block in range(13):
+        for block in range(1):
             setattr(self, "res_%i" % block,ResBlock())
         self.outblockcritic = OutBlockcritic()
         self.saved_log_probs = []
@@ -90,7 +90,7 @@ class ValueNetwork(nn.Module):
         y = self.conv1(x)
         y = self.bn1(y)
         y = self.relu1(y)
-        for block in range(13):
+        for block in range(1):
             y = getattr(self, "res_%i" % block)(y)
         y = self.outblockcritic(y)
         return y.squeeze(1)

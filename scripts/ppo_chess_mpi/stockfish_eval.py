@@ -3,6 +3,8 @@ import chess.engine
 from chess.engine import Mate
 from stockfish import Stockfish
 
+import time
+
 # import timeit
 
 def init_stockfish_engine():
@@ -31,8 +33,7 @@ def StockfishScore(fen, engine):
 
 
 def Score(fen):
-    stockfish = Stockfish("./stockfish_20090216_x64.exe", parameters={
-                                                                        "Write Debug Log": "false",
+    stockfish = Stockfish("./stockfish_20090216_x64.exe", parameters={  "Write Debug Log": "false",
                                                                         "Contempt": 0,
                                                                         "Min Split Depth": 30,
                                                                         "Threads": 1,
@@ -43,9 +44,10 @@ def Score(fen):
                                                                         "Move Overhead": 30,
                                                                         "Minimum Thinking Time": 20,
                                                                         "Slow Mover": 84,
-                                                                        "UCI_Chess960": "false",}
+                                                                        "UCI_Chess960": "false"}
         )
     stockfish.set_fen_position(fen)
+    stockfish.set_depth(14)
     score = stockfish.get_evaluation()
     if score['type'] == 'mate':
         if score['value'] > 0:
@@ -58,8 +60,18 @@ def Score(fen):
 
 # fen = "2N5/8/2Q5/4k2p/1R6/7P/6P1/7K b - - 4 66"
 
+# start = time.perf_counter()
+
 # engine = init_stockfish_engine()
 # print(StockfishScore(fen, engine))
+
+# old = time.perf_counter()
+
 # print(Score(fen))
 
+# new = time.perf_counter()
+
+# print(f"Old evaluation time: {old-start}. New eval time: {new-old}")
+
 # engine.quit()
+
