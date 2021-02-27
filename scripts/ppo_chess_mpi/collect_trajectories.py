@@ -4,13 +4,14 @@ import numpy as np
 from torch.distributions.categorical import Categorical
 
 from memory import Episode
+from chess_env import ChessEnv
 
 
 def collect(q, env_name, max_timesteps, state_scale,
             reward_scale, policy_model, value_model, gamma, lambda_gae, device):
 
     # Create and enviroment for every thread
-    env = gym.make(env_name)
+    env = ChessEnv()
 
     observation = env.reset()
     ep_reward = 0
@@ -20,9 +21,9 @@ def collect(q, env_name, max_timesteps, state_scale,
     for timestep in range(max_timesteps):
         # Loop through time_steps
 
-        action, log_probability, value = get_action(observation / state_scale, policy_model, value_model, device)
+        action, log_probability, value, mask = get_action(observation / state_scale, policy_model, value_model, device, env)
 
-        new_observation, reward, done, _ = env.step(action)
+        new_observation, reward, done = env.step(action)
 
         ep_reward += reward
 
@@ -31,6 +32,7 @@ def collect(q, env_name, max_timesteps, state_scale,
         episode.rewards.append(reward / reward_scale)
         episode.values.append(value)
         episode.log_probabilities.append(log_probability)
+        episode.masks.append(mask)
 
         observation = new_observation
 
@@ -40,7 +42,7 @@ def collect(q, env_name, max_timesteps, state_scale,
 
         if timestep == max_timesteps - 1:
             # Episode didn't finish so we have to append value to RTGs and advantages
-            _, _, value = get_action(observation / state_scale, policy_model, value_model, device)
+            _, _, value, _ = get_action(observation / state_scale, policy_model, value_model, device, env)
             end_episode(episode, value, gamma, lambda_gae)
 
     # Calc episode reward
@@ -49,7 +51,7 @@ def collect(q, env_name, max_timesteps, state_scale,
 
     q.put(episode)
 
-def get_action(state, policy_model, value_model, device):
+def get_action(state, policy_model, value_model, device, env):
 
     policy_model.eval()
     value_model.eval()
@@ -62,6 +64,11 @@ def get_action(state, policy_model, value_model, device):
 
     logits = policy_model(state)
 
+    legal_actions = torch.tensor(env.legal_actions()).to(device)
+    mask = torch.zeros(4272).to(device)
+    mask.index_fill_(0,legal_actions, 1)
+    logits[0][mask == 0] = -float("Inf")
+
     m = Categorical(logits=logits)
 
     action = m.sample()
@@ -70,7 +77,7 @@ def get_action(state, policy_model, value_model, device):
 
     value = value_model(state)
 
-    return action.item(), log_probability.item(), value.item()
+    return action.item(), log_probability.item(), value.item(), mask
 
 def cumulative_sum(vector, discount):
     out = np.zeros_like(vector)

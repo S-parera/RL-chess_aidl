@@ -2,7 +2,7 @@ import numpy as np
 import chess
 import torch
 import chess.engine
-from stockfish_eval import StockfishScore, init_stockfish_engine
+from stockfish_eval import StockfishScore, init_stockfish_engine, Score
 
 
 class ChessEnv():
@@ -17,7 +17,7 @@ class ChessEnv():
 
     self.stockfish_val = 0
 
-    self.stockfish_engine = init_stockfish_engine()
+    # self.stockfish_engine = init_stockfish_engine()
 
     self.move = ''
 
@@ -483,7 +483,8 @@ class ChessEnv():
       self.board = chess.Board(self.get_FEN(np.random.randint(0,1000000)))
     state = self.BoardEncode()
 
-    self.stockfish_val = StockfishScore(self.board.fen(), self.stockfish_engine)
+    # self.stockfish_val = StockfishScore(self.board.fen(), self.stockfish_engine)
+    self.stockfish_val = Score(self.board.fen())
 
     return state
 
@@ -502,7 +503,8 @@ class ChessEnv():
     if(self.board.is_checkmate()):
       reward = 100
     else:
-      stockfish_val_new = StockfishScore(self.board.fen(), self.stockfish_engine)
+      # stockfish_val_new = StockfishScore(self.board.fen(), self.stockfish_engine)
+      stockfish_val_new = Score(self.board.fen())
       reward = -abs(stockfish_val_new - self.stockfish_val)
       self.stockfish_val = stockfish_val_new
 
@@ -519,10 +521,17 @@ class ChessEnv():
     print(self.board)
     print("Move: ", self.move)
 
-  def close(self):
-    self.stockfish_engine.quit()
+  # def close(self):
+  #   self.stockfish_engine.quit()
 
 
 
-
+# env = ChessEnv()
+# state = env.reset()
+# legal_actions = env.legal_actions()
+# print(legal_actions)
+# state, reward, done = env.step(legal_actions[0])
+# print(reward)
+# env.render()
+# # env.close()
 

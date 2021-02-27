@@ -47,13 +47,19 @@ def Score(fen):
         )
     stockfish.set_fen_position(fen)
     score = stockfish.get_evaluation()
-    print(score)
+    if score['type'] == 'mate':
+        if score['value'] > 0:
+            return 100-score['value']
+        else:
+            return -100-score['value']
+    else:
+        return score['value']/100.0
 
 
 # fen = "2N5/8/2Q5/4k2p/1R6/7P/6P1/7K b - - 4 66"
 
 # engine = init_stockfish_engine()
 # print(StockfishScore(fen, engine))
-# Score(fen)
+# print(Score(fen))
 
 # engine.quit()

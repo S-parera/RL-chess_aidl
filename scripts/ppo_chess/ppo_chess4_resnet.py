@@ -372,12 +372,12 @@ episode_ite = 0
 time_steps_ite = 0
 train_ite = 0
 
-#Load model if it exists
-model_path = "./model"
-if (Path(model_path) / (env_name + "policy.pth")).exists():
-    policy_model.load_state_dict(torch.load(Path(model_path) / (env_name + "policy.pth")))
-    value_model.load_state_dict(torch.load(Path(model_path) / (env_name + "value.pth")))
-    print("Loaded model!")
+# #Load model if it exists
+# model_path = "./model"
+# if (Path(model_path) / (env_name + "policy.pth")).exists():
+#     policy_model.load_state_dict(torch.load(Path(model_path) / (env_name + "policy.pth")))
+#     value_model.load_state_dict(torch.load(Path(model_path) / (env_name + "value.pth")))
+#     print("Loaded model!")
 
 running_reward = -1000
 
@@ -391,9 +391,9 @@ writer = SummaryWriter(log_dir=log_dir)
 
 for ite in tqdm(range(max_iterations), ascii=True):
 
-    if ite % 5 == 0:
-        torch.save(policy_model.state_dict(),Path(model_path) / (env_name + "policy.pth"))
-        torch.save(value_model.state_dict(),Path(model_path) / (env_name + "value.pth"))
+    # if ite % 5 == 0:
+    #     torch.save(policy_model.state_dict(),Path(model_path) / (env_name + "policy.pth"))
+    #     torch.save(value_model.state_dict(),Path(model_path) / (env_name + "value.pth"))
 
     print("\nSimulating")
 
