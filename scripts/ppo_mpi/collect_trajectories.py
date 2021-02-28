@@ -6,14 +6,15 @@ from torch.distributions.categorical import Categorical
 from memory import Episode
 
 
-def collect(q, env_name, max_timesteps, state_scale,
+def collect(q, env_name, env, st, max_timesteps, state_scale,
             reward_scale, policy_model, value_model, gamma, lambda_gae, device):
 
     # Create and enviroment for every thread
-    env = gym.make(env_name)
+    # env = gym.make(env_name)
+    env, observation, ep_reward = env
 
-    observation = env.reset()
-    ep_reward = 0
+    # observation = env.reset()
+    # ep_reward = 0
             
     episode = Episode()
 
@@ -36,18 +37,24 @@ def collect(q, env_name, max_timesteps, state_scale,
 
         if done:
             end_episode(episode, 0, gamma, lambda_gae)
+            # Add new state to StateQueue
+            observation = env.reset()
+            st.put((env, observation, 0))
             break
 
         if timestep == max_timesteps - 1:
             # Episode didn't finish so we have to append value to RTGs and advantages
             _, _, value = get_action(observation / state_scale, policy_model, value_model, device)
             end_episode(episode, value, gamma, lambda_gae)
+            # Add state to StateQueue
+            st.put((env, observation, ep_reward))
 
     # Calc episode reward
     episode.episode_reward()
+    episode.reward = ep_reward
     # Return episode
 
-    q.put(episode)
+    q.put((episode, done))
 
 def get_action(state, policy_model, value_model, device):
 

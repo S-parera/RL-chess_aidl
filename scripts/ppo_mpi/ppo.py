@@ -104,12 +104,13 @@ def main():
     clip = 0.2
     n_epoch = 4
     max_episodes = 10
-    max_timesteps = 2000
+    max_timesteps = 500
     batch_size = 32
-    max_iterations = 200
+    max_iterations = 500
     gamma = 0.99
     gae_lambda = 0.95
     entropy_coefficient = 0.01
+    env_threshold = env.spec.reward_threshold
 
     # NETWORK
     value_model = ValueNetwork(in_dim=feature_dim).to(device)
@@ -152,6 +153,13 @@ def main():
         value_model.load_state_dict(checkpoint['value_model'])
         value_optimizer.load_state_dict(checkpoint['value_optimizer'])
         running_reward = checkpoint['running_reward']
+
+    EnvQueue = queue.SimpleQueue()
+
+    for _ in range(max_episodes):
+        env = gym.make(env_name)
+        observation = env.reset()
+        EnvQueue.put((env, observation, 0))
     
 
     for ite in tqdm(range(max_iterations), ascii=True):
@@ -168,9 +176,14 @@ def main():
         
         q = queue.SimpleQueue()
 
+        
+        env_list = []
+        while not EnvQueue.empty():
+            env_list.append(EnvQueue.get())
+
         threads = []
-        for i in range(max_episodes):
-            t = threading.Thread(target=collect, args=[q, env_name,
+        for env in env_list:
+            t = threading.Thread(target=collect, args=[q, env_name, env, EnvQueue,
                                 max_timesteps, state_scale,reward_scale,
                                 policy_model, value_model, gamma,
                                 gae_lambda, device])
@@ -185,15 +198,16 @@ def main():
         avg_episode_reward = []
         # Write all episodes from queue to history buffer
         while not q.empty():
-            episode = q.get()
+            episode, done = q.get()
             history.episodes.append(episode)
-            avg_episode_reward.append(episode.reward)
+            avg_episode_reward.append((episode.reward, done))
         
-        for ep_reward in avg_episode_reward:
-            running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
+        for ep_reward, done in avg_episode_reward:
+            if done:
+                running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
 
-            writer.add_scalar("Average Episode Reward", ep_reward, episode_ite)
-            episode_ite += 1
+                writer.add_scalar("Average Episode Reward", ep_reward, episode_ite)
+                episode_ite += 1
 
         # avg_ep_reward = sum(avg_episode_reward) / len(avg_episode_reward)
 
@@ -220,7 +234,7 @@ def main():
         writer.add_scalar("Running Reward", running_reward, epoch_ite)
 
 
-        if (running_reward > env.spec.reward_threshold):
+        if (running_reward > env_threshold):
             print("\nSolved!")
             break
 
