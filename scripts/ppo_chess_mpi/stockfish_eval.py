@@ -18,7 +18,7 @@ def engine():
                                                                         "MultiPV": 1,
                                                                         "Skill Level": 20,
                                                                         "Move Overhead": 30,
-                                                                        "Minimum Thinking Time": 10000,
+                                                                        "Minimum Thinking Time": 20,
                                                                         "Slow Mover": 84,
                                                                         "UCI_Chess960": "false",}
         )
