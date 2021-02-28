@@ -7,14 +7,15 @@ from memory import Episode
 from chess_env import ChessEnv
 
 
-def collect(q, env_name, max_timesteps, state_scale,
+def collect(q, env_name, saved_env, se, max_timesteps, state_scale,
             reward_scale, policy_model, value_model, gamma, lambda_gae, device):
 
     # Create and enviroment for every thread
-    env = ChessEnv()
+    # env = ChessEnv()
+    env, observation, ep_reward = saved_env
 
-    observation = env.reset()
-    ep_reward = 0
+    # observation = env.reset()
+    # ep_reward = 0
             
     episode = Episode()
 
@@ -38,18 +39,23 @@ def collect(q, env_name, max_timesteps, state_scale,
 
         if done:
             end_episode(episode, 0, gamma, lambda_gae)
+            # Add new state to queue
+            se.put((env, env.reset(), 0))
             break
 
         if timestep == max_timesteps - 1:
             # Episode didn't finish so we have to append value to RTGs and advantages
             _, _, value, _ = get_action(observation / state_scale, policy_model, value_model, device, env)
             end_episode(episode, value, gamma, lambda_gae)
+            # Add state to queue
+            se.put((env, observation, ep_reward))
 
     # Calc episode reward
     episode.episode_reward()
+    episode.reward = ep_reward
     # Return episode
 
-    q.put(episode)
+    q.put((episode, done))
 
 def get_action(state, policy_model, value_model, device, env):
 

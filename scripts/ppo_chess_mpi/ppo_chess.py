@@ -107,7 +107,7 @@ def main():
     reward_scale = 1.0
     clip = 0.2
     n_epoch = 4
-    max_episodes = 4
+    max_episodes = 8
     max_timesteps = 50
     batch_size = 16
     max_iterations = 200
@@ -125,7 +125,6 @@ def main():
    
     # INIT
     history = History()
-    observation = env.reset()
 
     epoch_ite = 0
     episode_ite = 0
@@ -157,6 +156,13 @@ def main():
         value_model.load_state_dict(checkpoint['value_model'])
         value_optimizer.load_state_dict(checkpoint['value_optimizer'])
         running_reward = checkpoint['running_reward']
+
+
+    # Create SavedEnvs queue
+    SavedEnv = queue.SimpleQueue()
+    for _ in range(max_episodes):
+        env = ChessEnv()
+        SavedEnv.put((env, env.reset(), 0))
     
     # START ITERATING   
     for ite in tqdm(range(max_iterations), ascii=True):
@@ -174,10 +180,14 @@ def main():
         
         q = queue.SimpleQueue()
 
+        env_list = []
+        while not SavedEnv.empty():
+            env_list.append(SavedEnv.get())
+
         threads = []
-        for i in range(max_episodes):
-            t = threading.Thread(target=collect, args=[q, env_name,
-                                max_timesteps, state_scale,reward_scale,
+        for saved_env in env_list:
+            t = threading.Thread(target=collect, args=[q, env_name, saved_env,
+                                SavedEnv, max_timesteps, state_scale, reward_scale,
                                 policy_model, value_model, gamma,
                                 gae_lambda, device])
             t.start()
@@ -200,18 +210,19 @@ def main():
         avg_episode_reward = []
         # Write all episodes from queue to history buffer
         while not q.empty():
-            episode = q.get()
+            episode, done = q.get()
             history.episodes.append(episode)
-            avg_episode_reward.append(episode.reward)
+            avg_episode_reward.append((episode.reward, done))
         
         end_simulation = time.perf_counter()
         print("Simulation time: ", end_simulation-start_simulation)
         
-        for ep_reward in avg_episode_reward:
-            running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
+        for ep_reward, done in avg_episode_reward:
+            if done:
+                running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
 
-            writer.add_scalar("Average Episode Reward", ep_reward, episode_ite)
-            episode_ite += 1
+                writer.add_scalar("Average Episode Reward", ep_reward, episode_ite)
+                episode_ite += 1
 
         # avg_ep_reward = sum(avg_episode_reward) / len(avg_episode_reward)
 
@@ -220,8 +231,7 @@ def main():
 
         data_loader = DataLoader(history, batch_size=batch_size, shuffle=True, drop_last=True)
 
-        end_joining_episode = time.perf_counter()
-        print("Joining buffers time: ", end_joining_episode-end_simulation)
+
 
         print("Training")
         policy_loss, value_loss, train_ite = train_network(data_loader, policy_model, value_model,
@@ -229,7 +239,7 @@ def main():
                                                         train_ite, writer, entropy_coefficient)
 
         end_training = time.perf_counter()
-        print("Training time: ", end_training-end_joining_episode)
+        print("Training time: ", end_training-end_simulation)
 
 
         for p_l, v_l in zip(policy_loss, value_loss):
