@@ -22,7 +22,7 @@ from collect_trajectories import collect
 from chess_env import ChessEnv
 
 
-# device = torch.device("cpu")
+device = torch.device("cpu")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -214,7 +214,7 @@ def main():
             avg_episode_reward.append((episode.reward, done))
         
         end_simulation = time.perf_counter()
-        print("Simulation time: ", end_simulation-start_simulation)
+        print(f"Simulation time: {end_simulation-start_simulation} ")
         
         for ep_reward, done in avg_episode_reward:
             if done:
@@ -238,7 +238,7 @@ def main():
                                                         train_ite, writer, entropy_coefficient)
 
         end_training = time.perf_counter()
-        print("Training time: ", end_training-end_simulation)
+        print(f"Training time: {end_training-end_simulation}")
 
 
         for p_l, v_l in zip(policy_loss, value_loss):
