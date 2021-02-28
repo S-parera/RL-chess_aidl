@@ -96,7 +96,7 @@ def train_network(data_loader, policy_model, value_model, policy_optimizer, valu
 def main():
     
     # ENVIROMENT
-    env_name = "Chess"
+    env_name = "ResChess"
     env = ChessEnv()
 
 
@@ -109,7 +109,7 @@ def main():
     max_episodes = 4
     max_timesteps = 50
     batch_size = 16
-    max_iterations = 200
+    max_iterations = 1000
     gamma = 0.99
     gae_lambda = 0.95
     entropy_coefficient = 0.01

@@ -6,21 +6,34 @@ import torchvision.models as models
 
 from torchsummary import summary
 
-def PolicyNetwork():
-
-    policy_model = models.resnet18(pretrained=False)
-    policy_model.conv1 = nn.Conv2d(in_channels=33, out_channels = 64, kernel_size=3, padding=1)
-    policy_model.fc = nn.Linear(in_features=512, out_features=4272)
+class PolicyNetwork(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = models.resnet18(pretrained=False)
+        self.model.conv1 = nn.Conv2d(in_channels=33, out_channels = 64, kernel_size=3, padding=1)
+        self.model.fc = nn.Linear(in_features=512, out_features=2048)
+        self.fc1 = nn.Linear(in_features=2048, out_features=4272)
     
-    return policy_model
 
-def ValueNetwork():
+    def forward(self, x):
+        x = self.model(x)
+        y = self.fc1(x)
 
-    value_model = models.resnet18(pretrained=False)
-    value_model.conv1 = nn.Conv2d(in_channels=33, out_channels = 64, kernel_size=3, padding=1)
-    value_model.fc = nn.Linear(in_features=512, out_features=1)
+        return y
 
-    return value_model
+class ValueNetwork(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = models.resnet18(pretrained=False)
+        self.model.conv1 = nn.Conv2d(in_channels=33, out_channels = 64, kernel_size=3, padding=1)
+        self.model.fc = nn.Linear(in_features=512, out_features=1)
+    
+
+    def forward(self, x):
+        y = self.model(x)
+
+        return y
+
 
 # policy = PolicyNetwork().cuda()
 # critic = ValueNetwork().cuda()
