@@ -22,9 +22,8 @@ from collect_trajectories import collect
 from chess_env import ChessEnv
 
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-device = torch.device("cpu")
+# device = torch.device("cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def train_network(data_loader, policy_model, value_model, policy_optimizer, value_optimizer ,n_epoch, clip, train_ite, writer, entropy_coefficient):
@@ -59,7 +58,7 @@ def train_network(data_loader, policy_model, value_model, policy_optimizer, valu
 
             new_log_probabilities = m.log_prob(actions)
 
-            values = value_model(observations)
+            values = value_model(observations).squeeze(1)
 
             probability_ratios = torch.exp(new_log_probabilities - old_log_probabilities)
             clipped_probabiliy_ratios = torch.clamp(probability_ratios, 1 - clip, 1 + clip)
@@ -107,7 +106,7 @@ def main():
     reward_scale = 1.0
     clip = 0.2
     n_epoch = 4
-    max_episodes = 8
+    max_episodes = 4
     max_timesteps = 50
     batch_size = 16
     max_iterations = 200

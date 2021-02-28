@@ -55,6 +55,8 @@ def collect(q, env_name, saved_env, se, max_timesteps, state_scale,
     episode.reward = ep_reward
     # Return episode
 
+    env.save_eval_dict()
+
     q.put((episode, done))
 
 def get_action(state, policy_model, value_model, device, env):
@@ -81,7 +83,7 @@ def get_action(state, policy_model, value_model, device, env):
 
     log_probability = m.log_prob(action)
 
-    value = value_model(state)
+    value = value_model(state).squeeze(1)
 
     return action.item(), log_probability.item(), value.item(), mask
 

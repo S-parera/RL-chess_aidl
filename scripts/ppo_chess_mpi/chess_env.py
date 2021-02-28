@@ -2,7 +2,8 @@ import numpy as np
 import chess
 import torch
 import chess.engine
-from stockfish_eval import StockfishScore, init_stockfish_engine, Score
+from stockfish_eval import engine, Stockfish_Score
+import pickle
 
 
 class ChessEnv():
@@ -20,6 +21,31 @@ class ChessEnv():
     # self.stockfish_engine = init_stockfish_engine()
 
     self.move = ''
+
+    self.stockfish_engine = engine()
+
+    self.evaluation_dict = self.load_eval_dict()
+
+
+
+
+  ##############################################################################
+  ### This function loads our dictionary of labelled positions.           ######
+  ##############################################################################
+
+  def load_eval_dict(self):
+    with open("evaluation_dict.pkl", "rb") as f:
+      evaluation_dict = pickle.load(f)
+      return evaluation_dict
+
+  ##############################################################################
+  ### This function saves our dictionary of labelled positions.           ######
+  ##############################################################################
+
+  def save_eval_dict(self):
+    with open("evaluation_dict.pkl", "wb") as f:
+        pickle.dump(self.evaluation_dict, f)
+        return
 
   ##############################################################################
   ### This function creates a dictionary with all possible moves in chess ######
@@ -420,7 +446,7 @@ class ChessEnv():
   def BoardEncode(self): 
     """Converts a board to numpy array representation (8,8,21) same as Alphazero with history_length = 1 (only one board)"""
 
-    array = np.zeros((8, 8, 14), dtype=int)
+    array = np.zeros((8, 8, 26), dtype=int)
 
     for square, piece in self.board.piece_map().items():
       rank, file = chess.square_rank(square), chess.square_file(square)
@@ -431,16 +457,19 @@ class ChessEnv():
       # this class always stores boards oriented towards the white player,
       # White is considered to be the active player here.
       offset = 0 if color == chess.WHITE else 6
-            
+      offset1 = 6 if color == chess.WHITE else 18        
       # Chess enumerates piece types beginning with one, which we have
       # to account for
       idx = piece_type - 1
-        
+      # We use now a for loop to save the squares attacked by the piece we just found
+      for i in list(self.board.attacks(square)):
+            array[chess.square_rank(i),chess.square_file(i),idx+offset1] = 1
+
       array[rank, file, idx + offset] = 1
 
       # Repetition counters
-    array[:, :, 12] = self.board.is_repetition(2)
-    array[:, :, 13] = self.board.is_repetition(3)
+    array[:, :, 24] = self.board.is_repetition(2)
+    array[:, :, 25] = self.board.is_repetition(3)
 
     #return array
 
@@ -483,8 +512,11 @@ class ChessEnv():
       self.board = chess.Board(self.get_FEN(np.random.randint(0,1000000)))
     state = self.BoardEncode()
 
-    # self.stockfish_val = StockfishScore(self.board.fen(), self.stockfish_engine)
-    self.stockfish_val = Score(self.board.fen())
+    if self.board.fen() in self.evaluation_dict:
+      self.stockfish_val = self.evaluation_dict[self.board.fen()]
+    else:
+      self.stockfish_val = Stockfish_Score(self.board.fen(),self.stockfish_engine)
+      self.evaluation_dict[self.board.fen()]=self.stockfish_val
 
     return state
 
@@ -503,8 +535,12 @@ class ChessEnv():
     if(self.board.is_checkmate()):
       reward = 100
     else:
-      # stockfish_val_new = StockfishScore(self.board.fen(), self.stockfish_engine)
-      stockfish_val_new = Score(self.board.fen())
+      if self.board.fen() in self.evaluation_dict:
+        stockfish_val_new = self.evaluation_dict[self.board.fen()]
+      else:
+        #stockfish_val_new = StockfishScore(self.board.fen(), self.stockfish_engine)
+        stockfish_val_new = Stockfish_Score(self.board.fen(),self.stockfish_engine)
+        self.evaluation_dict[self.board.fen()]=stockfish_val_new
       reward = -abs(stockfish_val_new - self.stockfish_val)
       self.stockfish_val = stockfish_val_new
 
