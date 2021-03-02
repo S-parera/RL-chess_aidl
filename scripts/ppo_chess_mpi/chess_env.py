@@ -4,6 +4,7 @@ import torch
 import chess.engine
 from stockfish_eval import engine, Stockfish_Score
 import pickle
+import chess.pgn
 
 
 class ChessEnv():
@@ -24,8 +25,11 @@ class ChessEnv():
 
     self.stockfish_engine = engine()
 
-    self.evaluation_dict = self.load_eval_dict()
-
+    try:
+      self.evaluation_dict = self.load_eval_dict()
+    except:
+      self.evaluation_dict = {}
+      self.save_eval_dict()
 
 
 
@@ -509,7 +513,7 @@ class ChessEnv():
     if initial_state:
       self.board = chess.Board()
     else:
-      self.board = chess.Board(self.get_FEN(np.random.randint(0,1000000)))
+      self.board = chess.Board(self.get_FEN(np.random.randint(0,10)))
     state = self.BoardEncode()
 
     if self.board.fen() in self.evaluation_dict:
@@ -557,8 +561,13 @@ class ChessEnv():
     print(self.board)
     print("Move: ", self.move)
 
-  # def close(self):
-  #   self.stockfish_engine.quit()
+  def print_game(self):
+    game = chess.pgn.Game()
+    node = game
+    for move in self.board.move_stack:
+        node = node.add_variation(move)
+    print(game)
+
 
 
 
@@ -570,4 +579,5 @@ class ChessEnv():
 # print(reward)
 # env.render()
 # # env.close()
+# env.print_game()
 

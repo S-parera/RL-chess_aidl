@@ -96,7 +96,7 @@ def train_network(data_loader, policy_model, value_model, policy_optimizer, valu
 def main():
     
     # ENVIROMENT
-    env_name = "ResChess"
+    env_name = "Res34-Stock15-Chess"
     env = ChessEnv()
 
 
@@ -106,7 +106,7 @@ def main():
     reward_scale = 1.0
     clip = 0.2
     n_epoch = 4
-    max_episodes = 4
+    max_episodes = 8
     max_timesteps = 50
     batch_size = 16
     max_iterations = 1000
