@@ -93,26 +93,27 @@ def train_network(data_loader, policy_model, value_model, policy_optimizer, valu
 
     return policy_epoch_losses, value_epoch_losses, train_ite
 
-def main():
+def main(env_name, lr, state_scale, reward_scale, clip, train_epoch, max_episodes,
+            max_timesteps, batch_size, max_iterations, gamma, gae_lambda, entropy_coefficient):
     
     # ENVIROMENT
-    env_name = "Res34-Stock15-Chess"
+    env_name = "Res101-Stock15-Chess"
     env = ChessEnv()
 
 
     # PARAMETERS
-    learning_rate = 5e-4
-    state_scale = 1.0
-    reward_scale = 1.0
-    clip = 0.2
-    n_epoch = 4
-    max_episodes = 8
-    max_timesteps = 50
-    batch_size = 16
-    max_iterations = 1000
-    gamma = 0.99
-    gae_lambda = 0.95
-    entropy_coefficient = 0.01
+    learning_rate = lr
+    state_scale = state_scale
+    reward_scale = reward_scale
+    clip = clip
+    n_epoch = train_epoch
+    max_episodes = max_episodes
+    max_timesteps = max_timesteps
+    batch_size = batch_size
+    max_iterations = max_iterations
+    gamma = gamma
+    gae_lambda = gae_lambda
+    entropy_coefficient = entropy_coefficient
 
     # NETWORK
     value_model = ValueNetwork().to(device)
@@ -258,4 +259,18 @@ def main():
             break
 
 if __name__ == '__main__':
-    main()
+    main(env_name = "Res101-Stock15-Chess",
+            lr = 5e-4,
+            state_scale = 1.0,
+            reward_scale= 1.0,
+            clip = 0.2,
+            train_epoch = 4,
+            max_episodes = 12,
+            max_timesteps = 50,
+            batch_size = 32,
+            max_iterations = 1000,
+            gamma = 0.95,
+            gae_lambda = 0.99,
+            entropy_coefficient = 0.01)
+
+
