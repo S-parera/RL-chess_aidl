@@ -8,8 +8,10 @@ from chess_env import ChessEnv
 
 
 def collect(q, env_name, saved_env, se, max_timesteps, state_scale,
-            reward_scale, policy_model, value_model, gamma, lambda_gae, device):
+            reward_scale, policy_model, value_model, gamma, lambda_gae,
+            device, rival_policy):
 
+    
     # Create and enviroment for every thread
     # env = ChessEnv()
     env, observation, ep_reward = saved_env
@@ -24,7 +26,7 @@ def collect(q, env_name, saved_env, se, max_timesteps, state_scale,
 
         action, log_probability, value, mask = get_action(observation / state_scale, policy_model, value_model, device, env)
 
-        new_observation, reward, done = env.step(action)
+        new_observation, reward, done = env.step(action, rival_policy, device)
 
         ep_reward += reward
 

@@ -104,7 +104,7 @@ def main():
     clip = 0.2
     n_epoch = 4
     max_episodes = 10
-    max_timesteps = 500
+    max_timesteps = 100
     batch_size = 32
     max_iterations = 500
     gamma = 0.99

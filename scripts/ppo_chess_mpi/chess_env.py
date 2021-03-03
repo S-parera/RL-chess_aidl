@@ -5,7 +5,10 @@ import chess.engine
 from stockfish_eval import engine, Stockfish_Score
 import pickle
 import chess.pgn
-
+import copy
+from network import PolicyNetwork
+import torch
+from torch.distributions.categorical import Categorical
 
 class ChessEnv():
 
@@ -513,7 +516,7 @@ class ChessEnv():
     if initial_state:
       self.board = chess.Board()
     else:
-      self.board = chess.Board(self.get_FEN(np.random.randint(0,10)))
+      self.board = chess.Board(self.get_FEN(np.random.randint(0,5)))
     state = self.BoardEncode()
 
     if self.board.fen() in self.evaluation_dict:
@@ -528,7 +531,7 @@ class ChessEnv():
 
     return self.get_legal_moves_mask(list(self.board.legal_moves))
 
-  def step(self, action):
+  def step(self, action, rival_policy, device):
 
     # comprobar valoracion stockfish
     # stockfish_val_current = StockfishScore(self.board.fen())
@@ -537,7 +540,7 @@ class ChessEnv():
     
     
     if(self.board.is_checkmate()):
-      reward = 100
+      reward = 10
     else:
       if self.board.fen() in self.evaluation_dict:
         stockfish_val_new = self.evaluation_dict[self.board.fen()]
@@ -548,6 +551,16 @@ class ChessEnv():
       reward = -abs(stockfish_val_new - self.stockfish_val)
       self.stockfish_val = stockfish_val_new
 
+    
+      
+    # Move rival
+    if(not self.board.is_game_over()):
+      self.move_rival(rival_policy, device)
+
+      if(self.board.is_checkmate()):
+        # Rival checkmated you
+        reward = -5
+
       
     # DONE  
     if(self.board.is_game_over()):
@@ -556,6 +569,32 @@ class ChessEnv():
       done = False
 
     return self.BoardEncode(), reward, done
+
+  def move_rival(self, rival_policy, device):
+    rival_policy.eval()
+
+    state = self.BoardEncode()
+
+    if not state is torch.Tensor:
+        state = torch.from_numpy(state).float().to(device)
+
+    if state.shape[0] != 1:
+        state = state.unsqueeze(0) # Create batch dimension
+
+    logits = rival_policy(state)
+
+    legal_actions = torch.tensor(self.legal_actions()).to(device)
+    mask = torch.zeros(4272).to(device)
+    mask.index_fill_(0,legal_actions, 1)
+    logits[0][mask == 0] = -float("Inf")
+
+    m = Categorical(logits=logits)
+
+    action = m.sample().item()
+
+    self.move = self.inv_map[action]
+    self.board.push(chess.Move.from_uci(self.move))
+    
 
   def render(self):
     print(self.board)
@@ -571,13 +610,33 @@ class ChessEnv():
 
 
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+policy_model = PolicyNetwork().to(device)
+
+
+
 # env = ChessEnv()
-# state = env.reset()
-# legal_actions = env.legal_actions()
-# print(legal_actions)
-# state, reward, done = env.step(legal_actions[0])
+# env.update_rival(policy_model, device)
+# state = env.reset(True)
+# state, reward, done = env.step(env.legal_actions()[0])
+# state, reward, done = env.step(env.legal_actions()[0])
+# state, reward, done = env.step(env.legal_actions()[0])
+# state, reward, done = env.step(env.legal_actions()[0])
 # print(reward)
 # env.render()
-# # env.close()
+# env.print_game()
+
+# env = ChessEnv()
+# observation = env.reset(True)
+# env.update_rival(policy_model, device)
+
+# for t in range(50):
+#   observation, reward, done = env.step(env.legal_actions()[0])
+
+#   if done:
+#     print("Done")
+#     break
+
 # env.print_game()
 

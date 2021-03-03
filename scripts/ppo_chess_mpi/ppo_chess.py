@@ -94,10 +94,11 @@ def train_network(data_loader, policy_model, value_model, policy_optimizer, valu
     return policy_epoch_losses, value_epoch_losses, train_ite
 
 def main(env_name, lr, state_scale, reward_scale, clip, train_epoch, max_episodes,
-            max_timesteps, batch_size, max_iterations, gamma, gae_lambda, entropy_coefficient):
+            max_timesteps, batch_size, max_iterations, gamma, gae_lambda,
+            entropy_coefficient, start_running_reward, update_rate):
     
     # ENVIROMENT
-    env_name = "Res101-Stock15-Chess"
+    env_name = env_name
     env = ChessEnv()
 
 
@@ -129,7 +130,7 @@ def main(env_name, lr, state_scale, reward_scale, clip, train_epoch, max_episode
     epoch_ite = 0
     episode_ite = 0
     train_ite = 0
-    running_reward = -500
+    running_reward = start_running_reward
 
     # TENSORBOARD 
     timestr = time.strftime("%d%m%Y-%H%M%S-")
@@ -166,6 +167,11 @@ def main(env_name, lr, state_scale, reward_scale, clip, train_epoch, max_episode
     
     # START ITERATING   
     for ite in tqdm(range(max_iterations), ascii=True):
+        # Load model to rival each update_rate epochs
+        if ite % update_rate == 0:
+            print("\nUpdating")
+            rival_policy = PolicyNetwork().to(device)
+            rival_policy.load_state_dict(policy_model.state_dict())
 
         if ite % 5 == 0:
             torch.save({
@@ -189,7 +195,7 @@ def main(env_name, lr, state_scale, reward_scale, clip, train_epoch, max_episode
             t = threading.Thread(target=collect, args=[q, env_name, saved_env,
                                 SavedEnv, max_timesteps, state_scale, reward_scale,
                                 policy_model, value_model, gamma,
-                                gae_lambda, device])
+                                gae_lambda, device, rival_policy])
             t.start()
             threads.append(t)
 
@@ -197,13 +203,15 @@ def main(env_name, lr, state_scale, reward_scale, clip, train_epoch, max_episode
             t.join()
 
         
-        
-
-        # for i in range(max_episodes):
-        #     collect(q, env_name,
-        #                         max_timesteps, state_scale,reward_scale,
+        # for saved_env in env_list:
+        #     if ite % 20 == 0:
+        #         update_policy = True
+        #     else:
+        #         update_policy = False
+        #     collect(q, env_name, saved_env,
+        #                         SavedEnv, max_timesteps, state_scale, reward_scale,
         #                         policy_model, value_model, gamma,
-        #                         gae_lambda, device)
+        #                         gae_lambda, device, update_policy)
 
 
 
@@ -254,23 +262,25 @@ def main(env_name, lr, state_scale, reward_scale, clip, train_epoch, max_episode
         writer.add_scalar("Running Reward", running_reward, epoch_ite)
 
 
-        if (running_reward >0):
+        if (running_reward > 0):
             print("\nSolved!")
             break
 
 if __name__ == '__main__':
-    main(env_name = "Res101-Stock15-Chess",
-            lr = 5e-4,
+    main(env_name = "Res50-Stock15-Chess",
+            lr = 1e-3,
             state_scale = 1.0,
             reward_scale= 1.0,
             clip = 0.2,
             train_epoch = 4,
-            max_episodes = 12,
+            max_episodes = 10,
             max_timesteps = 50,
             batch_size = 32,
             max_iterations = 1000,
             gamma = 0.95,
             gae_lambda = 0.99,
-            entropy_coefficient = 0.01)
+            entropy_coefficient = 0.01,
+            start_running_reward = -30,
+            update_rate = 15)
 
 
