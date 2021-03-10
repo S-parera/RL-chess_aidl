@@ -10,17 +10,56 @@ import gym
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
+from matplotlib import animation
+import matplotlib.pyplot as plt
 
 import time
 
 from memory import Episode, History
 from network import PolicyNetwork, ValueNetwork
-from collect_trajectories import collect
-
+from collect_trajectories import collect, get_action
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 device = torch.device("cpu")
+
+
+def save_frames_as_gif(frames, path='./gifs/', filename='gym_animation.gif'):
+
+    #Mess with this to change frame size
+    plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
+
+    patch = plt.imshow(frames[0])
+    plt.axis('off')
+
+    def animate(i):
+        patch.set_data(frames[i])
+
+    anim = animation.FuncAnimation(plt.gcf(), animate, frames = len(frames), interval=40)
+    anim.save(path + filename, writer=animation.PillowWriter(fps=24))
+
+
+def make_gif(env_name, policy_model, value_model, device):
+#Make gym env
+    env = gym.make(env_name)
+    reward = 0
+    #Run the env
+    observation = env.reset()
+    frames = []
+    for t in range(1000):
+        #Render to frames buffer
+        frames.append(env.render(mode="rgb_array"))
+
+        action, log_probability, value = get_action(observation, policy_model, value_model, device)
+
+        observation, _reward, done, _ = env.step(action)
+        reward += _reward
+        if done:
+            print(reward)
+            break
+    env.close()
+    
+    save_frames_as_gif(frames)
 
 
 def train_network(data_loader, policy_model, value_model, policy_optimizer, value_optimizer ,n_epoch, clip, train_ite, writer, entropy_coefficient):
@@ -87,10 +126,12 @@ def train_network(data_loader, policy_model, value_model, policy_optimizer, valu
     return policy_epoch_losses, value_epoch_losses, train_ite
 
 def main():
+
+
     
     # ENVIROMENT
-    # env_name = "CartPole-v1"
-    env_name = "LunarLander-v2"
+    env_name = "CartPole-v1"
+    # env_name = "LunarLander-v2"
     env = gym.make(env_name)
     n_actions = env.action_space.n
     feature_dim = env.observation_space.shape[0]
@@ -195,6 +236,8 @@ def main():
         if (running_reward > env.spec.reward_threshold):
             print("\nSolved!")
             break
+
+    # make_gif(env_name, policy_model, value_model, device)
 
 if __name__ == '__main__':
     main()
