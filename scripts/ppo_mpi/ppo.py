@@ -91,8 +91,10 @@ def train_network(data_loader, policy_model, value_model, policy_optimizer, valu
 def main():
     
     # ENVIROMENT
-    env_name = "CartPole-v1"
+    # env_name = "CartPole-v1"
     # env_name = "LunarLander-v2"
+    # env_name = "Acrobot-v1"
+    env_name = "MountainCar-v0"
     env = gym.make(env_name)
     n_actions = env.action_space.n
     feature_dim = env.observation_space.shape[0]
@@ -104,9 +106,9 @@ def main():
     clip = 0.2
     n_epoch = 4
     max_episodes = 10
-    max_timesteps = 200
+    max_timesteps = 100
     batch_size = 32
-    max_iterations = 500
+    max_iterations = 1000
     gamma = 0.99
     gae_lambda = 0.95
     entropy_coefficient = 0.01

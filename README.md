@@ -36,6 +36,12 @@ With the original environment it was not possible, so we created our custom envi
 ### Results
 ### Conclusions (new hypothesis)
 
+## Supervised learning
+### Hypothesis
+### Experiment setup
+### Results
+### Conclusions (new hypothesis)
+
 ## Proximal Policy Optimization (PPO)
 ### Hypothesis
 ### Experiment setup
