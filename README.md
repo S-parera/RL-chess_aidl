@@ -6,6 +6,9 @@ Borja García, Pol García, Sergi Parera, Sergi Sellés
 ### Advisor:
 Daniel Fojo
 
+### Framework:
+Pytorch
+
 ## Project goals
 ### The algorithm Works
 The algorithm is working and is able to play games. The result is irrelevant as long as the game is finished.
@@ -38,8 +41,7 @@ With the original environment it was not possible, so we created our custom envi
 
 ## Supervised learning
 ### Hypothesis
-We want to make a neural network learn how to play chess using RL but is it possible for the network architecture we set up to learn?  
-
+The previous algorithms did not work as expected. One possibility is that the network architecture is not capable of learning how to play chess. So a good starting point could be to try to teach it using supervised learning.
 
 ### Experiment setup
 There are a lot of chess datasets online. We will use one from [Kaggle](https://www.kaggle.com/datasnaek/chess) and use supervised learning on the network.  
@@ -50,24 +52,56 @@ Using this dataset we were able to teach the network how to predict a move from 
 
 INSERT GIF PLAY
 AND PLAY RESULTS
+INSERT LEARNING GRAPHS
 ### Conclusions (new hypothesis)
 This confirms that the network can learn how to beat an opponent and is capable to analyze the board an output a "good" move.  
 
-The next step is to try the same network to learn using some kind of RL algorithm.
+The next step is to try the same network to learn using some kind of more advanced RL algorithm like PPO.
 
 ## Proximal Policy Optimization (PPO)
 ### Hypothesis
-### Experiment setup
+PPO is a more powerful RL algorithm. It is really similar to the A2C *Advantage Actor Critic* but with the diference that the gradients are clipped. It prevents too abrupt changes in the policy by limiting the gradients.  
+In order to debug and be sure that the PPO we implemented worked we first tested it with some Open AI Gym Environments such as:  
+* [Cart Pole](https://gym.openai.com/envs/CartPole-v1/)
+* [Lunar Lander](https://gym.openai.com/envs/LunarLander-v2/)
+* [Mountain Car](https://gym.openai.com/envs/MountainCar-v0/)
+
+
+### OpenAI Gym experiment setup
+For this experiments we used two separate networks. One for the policy and one for the value. Both had the same *core* structure but different top layers size to match the action space and the value size respectively.  
+The input size of the network was the observation space size, with a hidden layer of size 256 and an output layer of size described above.
+
+Some hyperparameters used were:
+
+
+```
+learning_rate = 1e-3
+state_scale = 1.0
+reward_scale = 1.0
+clip = 0.2
+n_epoch = 4
+max_episodes = 10
+max_timesteps = 100
+batch_size = 32
+max_iterations = 1000
+gamma = 0.99
+gae_lambda = 0.95
+entropy_coefficient = 0.01
+```
 ### Results
+The results look promising. The algorithm runs perfectly and is sable to learn even more complex environments like Mountain Car.  
+The difficulity with Mountain Car is that the reward is always the same until it learns to reach the top so it has to start exploring by itself moving right and left.
 #### CartPole
 ![CarPole learning curve](png/CartPole.png)
 
 #### Lunar Lander
-![Gif](gifs/LunarLander.gif)
+![Lunar Lander Gif](gifs/LunarLander.gif)
 
 #### Mountain Car
 
-#### Chess
+### Chess enviroment setup
+#### Results
+
 ## Conclusions
 
 
