@@ -207,8 +207,8 @@ def main():
         for ep_reward, done in avg_episode_reward:
             if done:
                 running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
-
-                writer.add_scalar("Average Episode Reward", ep_reward, episode_ite)
+                writer.add_scalar("Running Reward", running_reward, episode_ite)
+                writer.add_scalar("Episode Reward", ep_reward, episode_ite)
                 episode_ite += 1
 
         # avg_ep_reward = sum(avg_episode_reward) / len(avg_episode_reward)
@@ -233,7 +233,7 @@ def main():
 
         # print("\n", running_reward)
 
-        writer.add_scalar("Running Reward", running_reward, epoch_ite)
+        
 
 
         if (running_reward > env_threshold):

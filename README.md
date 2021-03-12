@@ -38,9 +38,22 @@ With the original environment it was not possible, so we created our custom envi
 
 ## Supervised learning
 ### Hypothesis
+We want to make a neural network learn how to play chess using RL but is it possible for the network architecture we set up to learn?  
+
+
 ### Experiment setup
+There are a lot of chess datasets online. We will use one from [Kaggle](https://www.kaggle.com/datasnaek/chess) and use supervised learning on the network.  
+The dataset consists of games in pgn format. We used the python-chess library and our custom enviroment to create a datset with boards as inputs and movements as outputs.  
+The network we will use is a Resnet 18 with the top FC layer set to match our action space.
 ### Results
+Using this dataset we were able to teach the network how to predict a move from the current board state. It reached an accuracy of around **25%** and when tested against a random player it was able to beat it the majority of times.
+
+INSERT GIF PLAY
+AND PLAY RESULTS
 ### Conclusions (new hypothesis)
+This confirms that the network can learn how to beat an opponent and is capable to analyze the board an output a "good" move.  
+
+The next step is to try the same network to learn using some kind of RL algorithm.
 
 ## Proximal Policy Optimization (PPO)
 ### Hypothesis
@@ -51,6 +64,8 @@ With the original environment it was not possible, so we created our custom envi
 
 #### Lunar Lander
 ![Gif](gifs/LunarLander.gif)
+
+#### Mountain Car
 
 #### Chess
 ## Conclusions
