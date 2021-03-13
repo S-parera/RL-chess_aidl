@@ -419,60 +419,49 @@ class ChessEnv():
   ##############################################################################
   def BoardEncode(self): 
     """Converts a board to numpy array representation (8,8,21) same as Alphazero with history_length = 1 (only one board)"""
-
-    array = np.zeros((8, 8, 14), dtype=int)
-
+    array = np.zeros((8, 8, 26), dtype=int)
     for square, piece in self.board.piece_map().items():
       rank, file = chess.square_rank(square), chess.square_file(square)
       piece_type, color = piece.piece_type, piece.color
-        
       # The first six planes encode the pieces of the active player, 
       # the following six those of the active player's opponent. Since
       # this class always stores boards oriented towards the white player,
       # White is considered to be the active player here.
-      offset = 0 if color == chess.WHITE else 6
-            
+      offset = 0 if color == chess.WHITE else 12
+      offset1 = 6 if color == chess.WHITE else 18        
       # Chess enumerates piece types beginning with one, which we have
       # to account for
       idx = piece_type - 1
-        
+      # We use now a for loop to save the squares attacked by the piece we just found
+      for i in list(self.board.attacks(square)):
+            array[chess.square_rank(i),chess.square_file(i),idx+offset1] = 1
       array[rank, file, idx + offset] = 1
-
       # Repetition counters
-    array[:, :, 12] = self.board.is_repetition(2)
-    array[:, :, 13] = self.board.is_repetition(3)
-
+    array[:, :, 24] = self.board.is_repetition(2)
+    array[:, :, 25] = self.board.is_repetition(3)
     #return array
-
     #def observation(self, board: chess.Board) -> np.array:
     #Converts chess.Board observations instance to numpy arrays.
     #self._history.push(board)
-
     #history = self._history.view(orientation=board.turn)
     history = array
     meta = np.zeros(
     shape=(8 ,8, 7),
     dtype=int
     )
-    
     # Active player color
     meta[:, :, 0] = int(self.board.turn)
-    
     # Total move count
     meta[:, :, 1] = self.board.fullmove_number
-
     # Active player castling rights
     meta[:, :, 2] = self.board.has_kingside_castling_rights(self.board.turn)
     meta[:, :, 3] = self.board.has_queenside_castling_rights(self.board.turn)
-    
     # Opponent player castling rights
     meta[:, :, 4] = self.board.has_kingside_castling_rights(not self.board.turn)
     meta[:, :, 5] = self.board.has_queenside_castling_rights(not self.board.turn)
-
     # No-progress counter
     meta[:, :, 6] = self.board.halfmove_clock
     observation = np.concatenate([history, meta], axis=-1)
-
     return np.transpose(observation, (2, 0, 1))
 
 

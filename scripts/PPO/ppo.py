@@ -10,8 +10,6 @@ import gym
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
-from matplotlib import animation
-import matplotlib.pyplot as plt
 
 import time
 
@@ -23,43 +21,6 @@ from collect_trajectories import collect, get_action
 
 device = torch.device("cpu")
 
-
-def save_frames_as_gif(frames, path='./gifs/', filename='gym_animation.gif'):
-
-    #Mess with this to change frame size
-    plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
-
-    patch = plt.imshow(frames[0])
-    plt.axis('off')
-
-    def animate(i):
-        patch.set_data(frames[i])
-
-    anim = animation.FuncAnimation(plt.gcf(), animate, frames = len(frames), interval=40)
-    anim.save(path + filename, writer=animation.PillowWriter(fps=24))
-
-
-def make_gif(env_name, policy_model, value_model, device):
-#Make gym env
-    env = gym.make(env_name)
-    reward = 0
-    #Run the env
-    observation = env.reset()
-    frames = []
-    for t in range(1000):
-        #Render to frames buffer
-        frames.append(env.render(mode="rgb_array"))
-
-        action, log_probability, value = get_action(observation, policy_model, value_model, device)
-
-        observation, _reward, done, _ = env.step(action)
-        reward += _reward
-        if done:
-            print(reward)
-            break
-    env.close()
-    
-    save_frames_as_gif(frames)
 
 
 def train_network(data_loader, policy_model, value_model, policy_optimizer, value_optimizer ,n_epoch, clip, train_ite, writer, entropy_coefficient):
@@ -237,7 +198,6 @@ def main():
             print("\nSolved!")
             break
 
-    # make_gif(env_name, policy_model, value_model, device)
 
 if __name__ == '__main__':
     main()
