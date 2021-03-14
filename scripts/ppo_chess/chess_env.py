@@ -418,7 +418,6 @@ class ChessEnv():
   ## This function takes the list of legal moves and converts it to a mask######
   ##############################################################################
   def BoardEncode(self): 
-    """Converts a board to numpy array representation (8,8,21) same as Alphazero with history_length = 1 (only one board)"""
     array = np.zeros((8, 8, 26), dtype=int)
     for square, piece in self.board.piece_map().items():
       rank, file = chess.square_rank(square), chess.square_file(square)

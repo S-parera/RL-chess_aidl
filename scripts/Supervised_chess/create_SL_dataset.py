@@ -45,7 +45,7 @@ print("Fen array shape: ",fen_array.dtype)
 move_array = np.array(moves, dtype=np.int64)
 print("Move array shape: ", move_array.dtype)
 
-np.savez_compressed('./moves.npz', fens=fen_array, moves=move_array)
+np.savez_compressed('./train_dataset.npz', fens=fen_array, moves=move_array)
 
 # Test Set
 fens = []

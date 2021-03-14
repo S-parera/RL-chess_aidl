@@ -8,10 +8,8 @@ from chess_env import ChessEnv
 
 
 def collect(q, env_name, saved_env, se, max_timesteps, state_scale,
-            reward_scale, policy_model, value_model, gamma, lambda_gae,
-            device, rival_policy):
+            reward_scale, model, gamma, lambda_gae, device):
 
-    
     # Create and enviroment for every thread
     # env = ChessEnv()
     env, observation, ep_reward = saved_env
@@ -24,9 +22,9 @@ def collect(q, env_name, saved_env, se, max_timesteps, state_scale,
     for timestep in range(max_timesteps):
         # Loop through time_steps
 
-        action, log_probability, value, mask = get_action(observation / state_scale, policy_model, value_model, device, env)
+        action, log_probability, value, mask = get_action(observation / state_scale, model, device, env)
 
-        new_observation, reward, done = env.step(action, rival_policy, device)
+        new_observation, reward, done = env.step(action)
 
         ep_reward += reward
 
@@ -47,7 +45,7 @@ def collect(q, env_name, saved_env, se, max_timesteps, state_scale,
 
         if timestep == max_timesteps - 1:
             # Episode didn't finish so we have to append value to RTGs and advantages
-            _, _, value, _ = get_action(observation / state_scale, policy_model, value_model, device, env)
+            _, _, value, _ = get_action(observation / state_scale, model, device, env)
             end_episode(episode, value, gamma, lambda_gae)
             # Add state to queue
             se.put((env, observation, ep_reward))
@@ -61,10 +59,10 @@ def collect(q, env_name, saved_env, se, max_timesteps, state_scale,
 
     q.put((episode, done))
 
-def get_action(state, policy_model, value_model, device, env):
+def get_action(state, model, device, env):
 
-    policy_model.eval()
-    value_model.eval()
+    model.eval()
+    
 
     if not state is torch.Tensor:
         state = torch.from_numpy(state).float().to(device)
@@ -72,7 +70,9 @@ def get_action(state, policy_model, value_model, device, env):
     if state.shape[0] != 1:
         state = state.unsqueeze(0) # Create batch dimension
 
-    logits = policy_model(state)
+    logits, value = model(state)
+
+    value = value.squeeze(1)
 
     legal_actions = torch.tensor(env.legal_actions()).to(device)
     mask = torch.zeros(4272).to(device)
@@ -84,8 +84,6 @@ def get_action(state, policy_model, value_model, device, env):
     action = m.sample()
 
     log_probability = m.log_prob(action)
-
-    value = value_model(state).squeeze(1)
 
     return action.item(), log_probability.item(), value.item(), mask
 

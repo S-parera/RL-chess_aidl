@@ -4,11 +4,7 @@ import torch
 import chess.engine
 from stockfish_eval import engine, Stockfish_Score
 import pickle
-import chess.pgn
-import copy
-from network import PolicyNetwork
-import torch
-from torch.distributions.categorical import Categorical
+
 
 class ChessEnv():
 
@@ -28,11 +24,8 @@ class ChessEnv():
 
     self.stockfish_engine = engine()
 
-    try:
-      self.evaluation_dict = self.load_eval_dict()
-    except:
-      self.evaluation_dict = {}
-      self.save_eval_dict()
+    self.evaluation_dict = self.load_eval_dict()
+
 
 
 
@@ -452,10 +445,13 @@ class ChessEnv():
   ##############################################################################
   def BoardEncode(self): 
     """Converts a board to numpy array representation (8,8,21) same as Alphazero with history_length = 1 (only one board)"""
+
     array = np.zeros((8, 8, 26), dtype=int)
+
     for square, piece in self.board.piece_map().items():
       rank, file = chess.square_rank(square), chess.square_file(square)
       piece_type, color = piece.piece_type, piece.color
+        
       # The first six planes encode the pieces of the active player, 
       # the following six those of the active player's opponent. Since
       # this class always stores boards oriented towards the white player,
@@ -468,41 +464,54 @@ class ChessEnv():
       # We use now a for loop to save the squares attacked by the piece we just found
       for i in list(self.board.attacks(square)):
             array[chess.square_rank(i),chess.square_file(i),idx+offset1] = 1
+
       array[rank, file, idx + offset] = 1
+
       # Repetition counters
     array[:, :, 24] = self.board.is_repetition(2)
     array[:, :, 25] = self.board.is_repetition(3)
+
     #return array
+
     #def observation(self, board: chess.Board) -> np.array:
     #Converts chess.Board observations instance to numpy arrays.
     #self._history.push(board)
+
     #history = self._history.view(orientation=board.turn)
     history = array
     meta = np.zeros(
     shape=(8 ,8, 7),
     dtype=int
     )
+    
     # Active player color
     meta[:, :, 0] = int(self.board.turn)
+    
     # Total move count
     meta[:, :, 1] = self.board.fullmove_number
+
     # Active player castling rights
     meta[:, :, 2] = self.board.has_kingside_castling_rights(self.board.turn)
     meta[:, :, 3] = self.board.has_queenside_castling_rights(self.board.turn)
+    
     # Opponent player castling rights
     meta[:, :, 4] = self.board.has_kingside_castling_rights(not self.board.turn)
     meta[:, :, 5] = self.board.has_queenside_castling_rights(not self.board.turn)
+
     # No-progress counter
     meta[:, :, 6] = self.board.halfmove_clock
     observation = np.concatenate([history, meta], axis=-1)
+
+
+
     return np.transpose(observation, (2, 0, 1))
 
 
-  def reset(self, initial_state=False):
+  def reset(self, initial_state=True):
     if initial_state:
       self.board = chess.Board()
     else:
-      self.board = chess.Board(self.get_FEN(np.random.randint(0,5)))
+      self.board = chess.Board(self.get_FEN(np.random.randint(0,1000000)))
     state = self.BoardEncode()
 
     if self.board.fen() in self.evaluation_dict:
@@ -516,8 +525,23 @@ class ChessEnv():
   def legal_actions(self):
 
     return self.get_legal_moves_mask(list(self.board.legal_moves))
+  
+  def fake_step(self, action):
+    self.move = self.inv_map[action]
+    self.board.push(chess.Move.from_uci(self.move))
+    if self.board.fen() in self.evaluation_dict:
+        stockfish_val_fake = self.evaluation_dict[self.board.fen()]
+    else:
+        #stockfish_val_new = StockfishScore(self.board.fen(), self.stockfish_engine)
+        stockfish_val_fake = Stockfish_Score(self.board.fen(),self.stockfish_engine)
+        self.evaluation_dict[self.board.fen()]=stockfish_val_fake
+    self.board.pop()
+    if int(self.board.turn) == 0:
+      return -stockfish_val_fake
+    else:
+      return stockfish_val_fake
 
-  def step(self, action, rival_policy, device):
+  def step(self, action):
 
     # comprobar valoracion stockfish
     # stockfish_val_current = StockfishScore(self.board.fen())
@@ -526,7 +550,7 @@ class ChessEnv():
     
     
     if(self.board.is_checkmate()):
-      reward = 10
+      reward = np.tanh(100)
     else:
       if self.board.fen() in self.evaluation_dict:
         stockfish_val_new = self.evaluation_dict[self.board.fen()]
@@ -537,16 +561,6 @@ class ChessEnv():
       reward = -abs(stockfish_val_new - self.stockfish_val)
       self.stockfish_val = stockfish_val_new
 
-    
-      
-    # Move rival
-    if(not self.board.is_game_over()):
-      self.move_rival(rival_policy, device)
-
-      if(self.board.is_checkmate()):
-        # Rival checkmated you
-        reward = -5
-
       
     # DONE  
     if(self.board.is_game_over()):
@@ -556,73 +570,21 @@ class ChessEnv():
 
     return self.BoardEncode(), reward, done
 
-  def move_rival(self, rival_policy, device):
-    rival_policy.eval()
-
-    state = self.BoardEncode()
-
-    if not state is torch.Tensor:
-        state = torch.from_numpy(state).float().to(device)
-
-    if state.shape[0] != 1:
-        state = state.unsqueeze(0) # Create batch dimension
-
-    logits = rival_policy(state)
-
-    legal_actions = torch.tensor(self.legal_actions()).to(device)
-    mask = torch.zeros(4272).to(device)
-    mask.index_fill_(0,legal_actions, 1)
-    logits[0][mask == 0] = -float("Inf")
-
-    m = Categorical(logits=logits)
-
-    action = m.sample().item()
-
-    self.move = self.inv_map[action]
-    self.board.push(chess.Move.from_uci(self.move))
-    
-
   def render(self):
     print(self.board)
     print("Move: ", self.move)
 
-  def print_game(self):
-    game = chess.pgn.Game()
-    node = game
-    for move in self.board.move_stack:
-        node = node.add_variation(move)
-    print(game)
-
-
-
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-policy_model = PolicyNetwork().to(device)
+  # def close(self):
+  #   self.stockfish_engine.quit()
 
 
 
 # env = ChessEnv()
-# env.update_rival(policy_model, device)
-# state = env.reset(True)
-# state, reward, done = env.step(env.legal_actions()[0])
-# state, reward, done = env.step(env.legal_actions()[0])
-# state, reward, done = env.step(env.legal_actions()[0])
-# state, reward, done = env.step(env.legal_actions()[0])
+# state = env.reset()
+# legal_actions = env.legal_actions()
+# print(legal_actions)
+# state, reward, done = env.step(legal_actions[0])
 # print(reward)
 # env.render()
-# env.print_game()
-
-# env = ChessEnv()
-# observation = env.reset(True)
-# env.update_rival(policy_model, device)
-
-# for t in range(50):
-#   observation, reward, done = env.step(env.legal_actions()[0])
-
-#   if done:
-#     print("Done")
-#     break
-
-# env.print_game()
+# # env.close()
 

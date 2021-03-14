@@ -161,7 +161,7 @@ criterion = F.cross_entropy
 
 timestr = time.strftime("%d%m%Y-%H%M%S-")
 
-log_dir = "./runs/" + timestr + 'SLResnet' 
+log_dir = "./runs/" + timestr + 'SLResnet34' 
 
 
 writer = SummaryWriter(log_dir=log_dir)
