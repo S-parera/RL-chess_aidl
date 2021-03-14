@@ -113,6 +113,12 @@ Trained Lunar Lander
 <img src="gifs/MountainCar-v0.gif" height="256" width="400"> 
 
 ### Chess enviroment setup
+
+Learning chess is not like the others environments. The output of the network must have a constant dimension (the action space). But each evaluated state does not have the same number of legal moves so some actions are not pickable. This is when we apply a mask to mask out all illegal moves and we create a probability distribution only with the legal ones where to sample from.
+
+### Reward system
+
+
 ### Results
 ![Chess learning curve](png/chess.png)  
 
@@ -132,7 +138,8 @@ There are a lot of chess datasets online. We will use one from [Kaggle](https://
 The dataset consists of games in pgn format. We used the python-chess library and our custom enviroment to create a datset with boards as inputs and movements as outputs.  
 The network we will use is a Resnet 18 with the top FC layer set to match our action space.
 ### Results
-Using this dataset we were able to teach the network how to predict a move from the current board state. It reached an accuracy of around **25%** and when tested against a random player it was able to beat it the majority of times.
+Using this dataset we were able to teach the network how to predict a move from the current board state. It reached an accuracy of around **25%** and when tested against a random player it was able to beat it the majority of times.  
+
 ![SLChess learning curve](png/SLchess.png)  
 
 <img src="gifs/quick_mate.gif" height="256" width="256">
