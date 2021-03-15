@@ -124,6 +124,7 @@ After each move, the board position gets assessed by Stockfish and gets a reward
 
 The idea behind this is that, for each “correct” move the overall score remains constant, however, in case we come across an “incorrect” movement the overall score will vary. We believe this allows the algorithm to learn at each step it makes, not only at the end of a game.  
 The evaluation that stockfish provides is passed through an tanh activation function to keep it between -1 and 1.  
+
 <img src="https://render.githubusercontent.com/render/math?math=evaluation=tanh(StockfishScore)">  
 
 ### Results
