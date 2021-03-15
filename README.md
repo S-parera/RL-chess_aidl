@@ -109,7 +109,7 @@ The negative is because of the Policy Gradient Theorem. We introduce an entropy 
 Value loss is just the MSE between the predicted values for each state and the accumulated discounted rewards.
 1. Both losses are summed and then backpropagated.
 This training loop across all the data is repeated more than once.
-With this algorithm we were able to solve the Lunar Lander environment and be sure that we had a working algorithm and we can tackle the chess problem.
+With this algorithm we were able to solve the Cart Pole, Lunar Lander and Mountain Car environments and be sure that we had a working algorithm and we can tackle the chess problem.
 
 ### OpenAI Gym experiments setup
 
@@ -154,9 +154,9 @@ Trained Lunar Lander
 
 ### Mountain Car
 ![Mountain Car learning curve](png/MountainCar.png)  
-Untrained Lunar Lander  
+Untrained Mountain Car 
 <img src="gifs/MountainCar-v0-untrained.gif" height="256" width="400">   
-Trained Lunar Lander  
+Trained Mountain Car 
 <img src="gifs/MountainCar-v0.gif" height="256" width="400"> 
 
 ### Chess enviroment setup
