@@ -34,10 +34,39 @@ With the original environment it was not possible, so we created our custom envi
 ### Conclusions (new hypothesis)
 
 ## DQN
+Algorithm description:
+- The Q-function is a DNN.
+- Collect transitions (s, a, r, s’) and store them in a replay memory D.
+- Sample random mini-batch of transitions (s, a, r, s’) from replay memory D.
+- Compute TD-learning targets wrt old parameters wー 
+- Optimise with MSE loss using gradient descent.
+- The parameters of the trained w serves to update the old wー.
+
 ### Hypothesis
+DQN is simple to implement and it served to quickly assess the chess environment and observe the result of training an initial net (CNN; no ResNet yet).
 ### Experiment setup
+```
+gamma = 0.99  
+seed = 543 
+log_interval = 25  
+num_steps = 5e4  
+batch_size = 1000 n
+lr = 1e-4 
+eps_start = 1.0  
+eps_end = 0.1  
+eps_decay = num_steps  
+target_update = 4000  
+```
+
 ### Results
-### Conclusions (new hypothesis)
+DQN served to implement our first chess environment and proved it works.
+
+DQN was trained to generate legal moves but the learning rate was too slow. After +5h of training, max amount of legal moves in a raw was about 10.  
+
+### Conclusions
+We decided to mask out the illegal moves (same as Alpha Zero) instead of trying to learn directly to generate legal moves.
+
+According to benchmark, PPO has(potentially better performance than DQN, so we concentrated our efforts on PPO.
 
 
 ## Proximal Policy Optimization (PPO)
@@ -116,6 +145,11 @@ Trained Lunar Lander
 
 Learning chess is not like the others environments. The output of the network must have a constant dimension (the action space). But each evaluated state does not have the same number of legal moves so some actions are not pickable. This is when we apply a mask to mask out all illegal moves and we create a probability distribution only with the legal ones where to sample from.
 
+### Evaluation metrics
+- Chess games of our trained policy/value net against a random-move player.
+- Alpha-beta pruning tree search to select the best move from the policy.
+- Elo rating system implemented in the evaluation. Elo calculates the relative skills of players and adjust the score according to results (the winner with lower Elo score get more points that the opposite case).
+
 ### Reward system
 
 After each move, the board position gets assessed by Stockfish and gets a reward. The actual reward calculation is:  
@@ -145,18 +179,35 @@ The previous algorithms did not work as expected. One possibility is that the ne
 There are a lot of chess datasets online. We will use one from [Kaggle](https://www.kaggle.com/datasnaek/chess) and use supervised learning on the network.  
 The dataset consists of games in pgn format. We used the python-chess library and our custom enviroment to create a datset with boards as inputs and movements as outputs.  
 The network we will use is a Resnet 18 with the top FC layer set to match our action space.
+
 ### Results
 Using this dataset we were able to teach the network how to predict a move from the current board state. It reached an accuracy of around **25%** and when tested against a random player it was able to beat it the majority of times.  
+After 20 test games we achieved:  
+* White wins: 11
+* Black wins: 0
+* Draws: 4
+* Timeouts: 5
 
 ![SLChess learning curve](png/SLchess.png)  
 
-<img src="gifs/quick_mate.gif" height="256" width="256">
+<img src="gifs/quick_mate.gif" height="256" width="256">  
 
+## Results summary
+- Policy Gradient: memorize legal moves and entire games as soon as quick way to reward is found.
+- DQN: managed to make +10 legal moves in a row. Very slow learning rate.
+- PPO: succesfully solved Cartpole, Lunar Lander, Mountain Car.
+- Supervised Learning: it shows chess knowledge. It can beat a random-move player.
+- PPO-chess: too slow progress in training chess. It requires implementing MonteCarlo Tree Search (MCTS).
+
+    MTCS is implemented by Alpha Zero and others to select the best possible move in training and also at play. Initially we considered tree search might not be necessary thanks to our reward scheme: we have a reward from Stockfish score function for each action while usually Alpha Zero and other chess engine have to complete a playout until the end in order to get a single reward.  
+    Note: Chess complexity = 10^123 is very big. No supercomputer can simulate all states. This is a key difference against the other solved enviroment like Lunar Lander o Mountain Car.
+- PPO-chess with PUCT: MCTS prepared but we had no time to make a complete run.
 
 
 ## Conclusions
+Relating to the main goals:
 ### The algorithm Works
-The algorithm is working and is able to play games.
+The algorithm is working and is able to play games. It solves Lunar Lander and Mountain Car environments successfully.
 ### The algorithm is not just random
 The algorithm learns how to win games when trained with supervised learning.
 ### The algorithm aims to win
@@ -166,6 +217,26 @@ We have not been able to improve the algorithm in order to consume les resources
 
 
 ## Next steps
-
+- PPO training with MCTS.
+- Use computing resources in Google Cloud Platform: VM instance prepared but not time to run MCTS.
+- Continue training…      
 
 ## References
+
+[Python-chess](https://python-chess.readthedocs.io/en/latest/)  
+[Alpha Zero paper](https://arxiv.org/pdf/1712.01815.pdf)  
+[Giraffe paper](https://arxiv.org/abs/1509.01549)  
+[Leela Chess Zero](https://lczero.org/dev/wiki/technical-explanation-of-leela-chess-zero/)  
+[lichess.org](https://lichess.org/analysis)  
+[OpenAI Gym](https://gym.openai.com/)  
+[OpenAI PPO](https://spinningup.openai.com/en/latest/algorithms/ppo.html)  
+[DeepMind RL](https://deepmind.com/learning-resources/reinforcement-learning-lectures-series-2018)  
+[MCTS for Alpha Zero](https://arxiv.org/abs/2012.11045)  
+[MCTS intro](https://www.cs.swarthmore.edu/~bryce/cs63/s16/reading/mcts.html)  
+[Alpha-Beta search](https://www.chessprogramming.org/Alpha-Beta)  
+[Google Cloud Platform](https://cloud.google.com/)  
+[GAE paper](https://arxiv.org/abs/1506.02438)  
+[PPO paper](https://arxiv.org/abs/1707.06347v2)  
+[SpinningUp AI](https://spinningup.openai.com/en/latest/)  
+[Python Multiprocessing](https://www.benmather.info/post/2018-11-24-multiprocessing-in-python/)  
+[Using Tensorboard](https://towardsdatascience.com/a-complete-guide-to-using-tensorboard-with-pytorch-53cb2301e8c3)
