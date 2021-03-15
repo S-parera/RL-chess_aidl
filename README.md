@@ -29,9 +29,27 @@ With the original environment it was not possible, so we created our custom envi
 
 ## Policy Gradient
 ### Hypothesis
+As always, it is not easy to start from scratch, that’s why we chose to start with Policy Gradient. It is due to its simplicity compared to other models that we assumed it would be a solid starting point, plus the fact we already had a functional implementation working for CartPole, which means that we were less prone to errors if we started this way. Last but not least, Policy Gradient composes the baseline for other more powerful and advanced RL models (i.e. PPO), which indicates that we could naturally progress in this way towards a more complex/powerful algorithm.
+
 ### Experiment setup
+
+```
+gamma = 0.99
+#seed = 543  # random seed
+log_interval = 20
+max_ep_len = 100
+num_episodes = 100000
+```
 ### Results
-### Conclusions (new hypothesis)
+
+Policy Gradient’s main focuses were to learn how to play by only performing legal moves and to actually learn the basic rules to start playing games from scratch.
+The algorithm was actually quite fast to perform 2 legal moves in a row (one for whites and another for blacks), the problem was that once a legal move was identified, it wouldn’t stop performing the same move as it learnt that the fastest way towards a high reward was that specific move.
+If we extrapolate this scenario into a full game, we can easily obtain a similar situation. When the algorithm was able to actually converge into a checkmate from a blank game (from start), it would always repeat the same game each time.
+
+### Conclusions
+
+We actually concluded the algorithm was not complex enough to get to understand the complex rules that chess has. A simple CNN + MLP would not be powerful enough to do so, at least not without a value betwork.
+This led us to “upgrade” our Policy Gradient into someting more: PPO.
 
 ## DQN
 Algorithm description:
