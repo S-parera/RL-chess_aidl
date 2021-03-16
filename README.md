@@ -53,7 +53,7 @@ This led us to “upgrade” our Policy Gradient into someting more: PPO.
 
 ## DQN
 Algorithm description:
-- The Q-function is a DNN.
+- The policy network is a DNN.
 - Collect transitions (s, a, r, s’) and store them in a replay memory D.
 - Sample random mini-batch of transitions (s, a, r, s’) from replay memory D.
 - Compute TD-learning targets wrt old parameters wー 
